@@ -1,6 +1,8 @@
 package contender
 
 import (
+	"context"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/pkg/errors"
@@ -10,13 +12,11 @@ const (
 	contenderTableName = "contenders"
 )
 
-// Store is the interface to the K/V retrieval of Contenders
-type Store interface {
-	Get(string) (*Contender, error)
-	Set(Contender) error
-	Delete(string) error
-	Win(string) error
-	Loss(string) error
+// Storer is the interface to the K/V retrieval of Contenders
+type Storer interface {
+	Get(context.Context, string) (*Contender, error)
+	Set(context.Context, Contender) error
+	Delete(context.Context, string) error
 }
 
 type dynamoStore struct {
@@ -25,14 +25,14 @@ type dynamoStore struct {
 
 // NewDynamoStore takes a reference to a DynamoDB instance
 // and returns the dynamo-backed version of the store
-func NewDynamoStore(d *dynamodb.DynamoDB) Store {
+func NewDynamoStore(d *dynamodb.DynamoDB) Storer {
 	return &dynamoStore{
 		dynamo: d,
 	}
 }
 
 // Get takes a name and tries to retrieve it from DynamoDB
-func (s *dynamoStore) Get(name string) (*Contender, error) {
+func (s *dynamoStore) Get(ctx context.Context, name string) (*Contender, error) {
 	if name == "" {
 		return nil, errors.New("must provide a non-empty name")
 	}
@@ -46,7 +46,7 @@ func (s *dynamoStore) Get(name string) (*Contender, error) {
 }
 
 // Set takes a Contender and tries to save it to Dynamo
-func (s *dynamoStore) Set(c Contender) error {
+func (s *dynamoStore) Set(ctx context.Context, c Contender) error {
 	input := putInput(c)
 	req := s.dynamo.PutItemRequest(input)
 
@@ -58,40 +58,12 @@ func (s *dynamoStore) Set(c Contender) error {
 }
 
 // Delete takes a Contender and tries to delete it from Dynamo
-func (s *dynamoStore) Delete(name string) error {
+func (s *dynamoStore) Delete(ctx context.Context, name string) error {
 	if name == "" {
 		return errors.New("must provide a non-empty name")
 	}
 	input := deleteInput(name)
 	req := s.dynamo.DeleteItemRequest(input)
-
-	if _, err := req.Send(); err != nil {
-		return errors.Wrap(err, "failed to send Get request")
-	}
-	return nil
-}
-
-// Win records a win for the contender in the database
-func (s *dynamoStore) Win(name string) error {
-	if name == "" {
-		return errors.New("must provide a non-empty name")
-	}
-	input := winInput(name)
-	req := s.dynamo.UpdateItemRequest(input)
-
-	if _, err := req.Send(); err != nil {
-		return errors.Wrap(err, "failed to send Get request")
-	}
-	return nil
-}
-
-// Loss records a loss for the contender in the database
-func (s *dynamoStore) Loss(name string) error {
-	if name == "" {
-		return errors.New("must provide a non-empty name")
-	}
-	input := lossInput(name)
-	req := s.dynamo.UpdateItemRequest(input)
 
 	if _, err := req.Send(); err != nil {
 		return errors.Wrap(err, "failed to send Get request")
