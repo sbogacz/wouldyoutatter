@@ -50,7 +50,8 @@ func (s *dynamoStore) Get(ctx context.Context, item Item) (Item, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to send Get request")
 	}
-	return item.FromAttributeMap(output.Item)
+
+	return item, item.Unmarshal(output.Item)
 }
 
 // Update takes a Item and tries to update it in Dynamo

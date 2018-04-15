@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/pkg/errors"
-	"github.com/sbogacz/wouldyoutatter/dynamostore"
 )
 
 const (
@@ -19,9 +18,9 @@ func (c Contender) Key() string {
 	return c.Name
 }
 
-// ToAttributeMap encodes the values of a contender into the map format
+// Marshal encodes the values of a contender into the map format
 // that dynamo expects
-func (c Contender) ToAttributeMap() map[string]dynamodb.AttributeValue {
+func (c Contender) Marshal() map[string]dynamodb.AttributeValue {
 	return map[string]dynamodb.AttributeValue{
 		"Name":        stringToAttributeValue(c.Name),
 		"Description": stringToAttributeValue(c.Description),
@@ -32,36 +31,37 @@ func (c Contender) ToAttributeMap() map[string]dynamodb.AttributeValue {
 	}
 }
 
-// FromAttributeMap tries to decode a Contender from a dynamo response
-func (c *Contender) FromAttributeMap(aMap map[string]dynamodb.AttributeValue) (dynamostore.Item, error) {
+// Unmarshal tries to decode a Contender from a dynamo response
+func (c *Contender) Unmarshal(aMap map[string]dynamodb.AttributeValue) error {
 	wins, err := getInt(aMap["Wins"])
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read Wins attribute")
+		return errors.Wrap(err, "failed to read Wins attribute")
 	}
 	losses, err := getInt(aMap["Losses"])
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read Losses attribute")
+		return errors.Wrap(err, "failed to read Losses attribute")
 	}
 	score, err := getInt(aMap["Score"])
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to read Score attribute")
+		return errors.Wrap(err, "failed to read Score attribute")
 	}
-
-	return &Contender{
+	newContender := &Contender{
 		Name:        getString(aMap["Name"]),
 		Description: getString(aMap["Description"]),
 		SVG:         getBytes(aMap["SVG"]),
 		Wins:        wins,
 		Losses:      losses,
 		Score:       score,
-	}, nil
+	}
+	*c = *newContender
+	return nil
 }
 
 // GetItemInput generates the dynamodb.GetItemInput for the given contender
 func (c *Contender) GetItemInput() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
 		TableName: aws.String(contenderTableName),
-		Key:       map[string]dynamodb.AttributeValue{"Name": dynamodb.AttributeValue{S: aws.String(c.Name)}},
+		Key:       map[string]dynamodb.AttributeValue{"Name": {S: aws.String(c.Name)}},
 	}
 }
 
@@ -69,7 +69,7 @@ func (c *Contender) GetItemInput() *dynamodb.GetItemInput {
 func (c *Contender) PutItemInput() *dynamodb.PutItemInput {
 	return &dynamodb.PutItemInput{
 		TableName: aws.String(contenderTableName),
-		Item:      c.ToAttributeMap(),
+		Item:      c.Marshal(),
 	}
 }
 
@@ -77,7 +77,7 @@ func (c *Contender) PutItemInput() *dynamodb.PutItemInput {
 func (c *Contender) DeleteItemInput() *dynamodb.DeleteItemInput {
 	return &dynamodb.DeleteItemInput{
 		TableName: aws.String(contenderTableName),
-		Key:       map[string]dynamodb.AttributeValue{"Name": dynamodb.AttributeValue{S: aws.String(c.Name)}},
+		Key:       map[string]dynamodb.AttributeValue{"Name": {S: aws.String(c.Name)}},
 	}
 }
 
@@ -121,17 +121,17 @@ func getBytes(a dynamodb.AttributeValue) []byte {
 func winInput(name string) *dynamodb.UpdateItemInput {
 	return &dynamodb.UpdateItemInput{
 		TableName:                 aws.String(contenderTableName),
-		Key:                       map[string]dynamodb.AttributeValue{"Name": dynamodb.AttributeValue{S: aws.String(name)}},
+		Key:                       map[string]dynamodb.AttributeValue{"Name": {S: aws.String(name)}},
 		UpdateExpression:          aws.String("ADD Wins :w"),
-		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{"w": dynamodb.AttributeValue{N: aws.String("1")}},
+		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{"w": {N: aws.String("1")}},
 	}
 }
 
 func lossInput(name string) *dynamodb.UpdateItemInput {
 	return &dynamodb.UpdateItemInput{
 		TableName:                 aws.String(contenderTableName),
-		Key:                       map[string]dynamodb.AttributeValue{"Name": dynamodb.AttributeValue{S: aws.String(name)}},
+		Key:                       map[string]dynamodb.AttributeValue{"Name": {S: aws.String(name)}},
 		UpdateExpression:          aws.String("ADD Losses :l"),
-		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{"l": dynamodb.AttributeValue{N: aws.String("1")}},
+		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{"l": {N: aws.String("1")}},
 	}
 }

@@ -14,7 +14,7 @@ type Item interface {
 	GetItemInput() *dynamodb.GetItemInput
 	UpdateItemInput() *dynamodb.UpdateItemInput
 	DeleteItemInput() *dynamodb.DeleteItemInput
-	FromAttributeMap(map[string]dynamodb.AttributeValue) (Item, error)
+	Unmarshal(map[string]dynamodb.AttributeValue) error
 }
 
 // Storer is the interface to the K/V retrieval of Contenders
