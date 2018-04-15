@@ -21,41 +21,41 @@ func NewInMemoryStore() Storer {
 }
 
 func (s *localStore) Set(ctx context.Context, item Item) error {
-	if item.Name() == "" {
+	if item.Key() == "" {
 		return errors.New("must provide a non-empty name")
 	}
 	s.l.Lock()
-	s.items[item.Name()] = item
+	s.items[item.Key()] = item
 	s.l.Unlock()
 	return nil
 }
 
 func (s *localStore) Get(ctx context.Context, item Item) (Item, error) {
-	if item.Name() == "" {
+	if item.Key() == "" {
 		return nil, errors.New("must provide a non-empty name")
 	}
 	s.l.RLock()
-	it := s.items[item.Name()]
+	it := s.items[item.Key()]
 	s.l.RUnlock()
 	return it, nil
 }
 
 func (s *localStore) Update(ctx context.Context, item Item) error {
-	if item.Name() == "" {
+	if item.Key() == "" {
 		return errors.New("must provide a non-empty name")
 	}
 	s.l.Lock()
-	s.items[item.Name()] = item
+	s.items[item.Key()] = item
 	s.l.Unlock()
 	return nil
 }
 
 func (s *localStore) Delete(ctx context.Context, item Item) error {
-	if item.Name() == "" {
+	if item.Key() == "" {
 		return errors.New("must provide a non-empty name")
 	}
 	s.l.Lock()
-	delete(s.items, item.Name())
+	delete(s.items, item.Key())
 	s.l.Unlock()
 	return nil
 }

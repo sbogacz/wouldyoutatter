@@ -26,7 +26,7 @@ func New(d *dynamodb.DynamoDB) Storer {
 
 // Set takes a Item and tries to save it to Dynamo
 func (s *dynamoStore) Set(ctx context.Context, item Item) error {
-	if item.Name() == "" {
+	if item.Key() == "" {
 		return errors.New("must provide a non-empty name")
 	}
 	input := item.PutItemInput()
@@ -41,7 +41,7 @@ func (s *dynamoStore) Set(ctx context.Context, item Item) error {
 
 // Get takes a name and tries to retrieve it from DynamoDB
 func (s *dynamoStore) Get(ctx context.Context, item Item) (Item, error) {
-	if item.Name() == "" {
+	if item.Key() == "" {
 		return nil, errors.New("must provide a non-empty name")
 	}
 	input := item.GetItemInput()
@@ -55,7 +55,7 @@ func (s *dynamoStore) Get(ctx context.Context, item Item) (Item, error) {
 
 // Update takes a Item and tries to update it in Dynamo
 func (s *dynamoStore) Update(ctx context.Context, item Item) error {
-	if item.Name() == "" {
+	if item.Key() == "" {
 		return errors.New("must provide a non-empty name")
 	}
 	input := item.UpdateItemInput()
@@ -69,7 +69,7 @@ func (s *dynamoStore) Update(ctx context.Context, item Item) error {
 
 // Delete takes a Item and tries to delete it from Dynamo
 func (s *dynamoStore) Delete(ctx context.Context, item Item) error {
-	if item.Name() == "" {
+	if item.Key() == "" {
 		return errors.New("must provide a non-empty name")
 	}
 	input := item.DeleteItemInput()

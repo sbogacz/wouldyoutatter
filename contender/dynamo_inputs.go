@@ -7,11 +7,17 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/pkg/errors"
+	"github.com/sbogacz/wouldyoutatter/dynamostore"
 )
 
 const (
 	contenderTableName = "contenders"
 )
+
+// Name returns the Contenders name, and implements the dynamostore Item interface
+func (c Contender) Key() string {
+	return c.Name
+}
 
 // ToAttributeMap encodes the values of a contender into the map format
 // that dynamo expects
@@ -27,7 +33,7 @@ func (c Contender) ToAttributeMap() map[string]dynamodb.AttributeValue {
 }
 
 // FromAttributeMap tries to decode a Contender from a dynamo response
-func FromAttributeMap(aMap map[string]dynamodb.AttributeValue) (*Contender, error) {
+func (c *Contender) FromAttributeMap(aMap map[string]dynamodb.AttributeValue) (dynamostore.Item, error) {
 	wins, err := getInt(aMap["Wins"])
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read Wins attribute")

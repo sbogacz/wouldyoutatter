@@ -7,7 +7,7 @@ import (
 )
 
 type Item interface {
-	Name() string
+	Key() string
 	PutItemInput() *dynamodb.PutItemInput
 	GetItemInput() *dynamodb.GetItemInput
 	UpdateItemInput() *dynamodb.UpdateItemInput
