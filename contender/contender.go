@@ -39,6 +39,13 @@ type Store struct {
 	db dynamostore.Storer
 }
 
+// NewStore takes a dynamodb Storer and uses it for the contender store
+func NewStore(db dynamostore.Storer) *Store {
+	return &Store{
+		db: db,
+	}
+}
+
 // Set lets you save a contender
 func (s *Store) Set(ctx context.Context, c *Contender) error {
 	return errors.Wrap(s.db.Set(ctx, c), "failed to save contender")
@@ -49,7 +56,11 @@ func (s *Store) Get(ctx context.Context, name string) (*Contender, error) {
 	c := &Contender{Name: name}
 	item, err := s.db.Get(ctx, c)
 	if err != nil {
+		if dynamostore.NotFoundError(err) {
+			return nil, nil
+		}
 		return nil, errors.Wrap(err, "failed to retrieve contender")
+
 	}
 	ret := item.(*Contender)
 	return ret, nil

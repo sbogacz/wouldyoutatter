@@ -10,6 +10,7 @@ import (
 
 	"github.com/phayes/freeport"
 	"github.com/sbogacz/wouldyoutatter/contender"
+	"github.com/sbogacz/wouldyoutatter/dynamostore"
 	"github.com/sbogacz/wouldyoutatter/service"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -80,7 +81,7 @@ func setupService() error {
 		return err
 	}
 	config := service.Config{Port: openPort}
-	s = service.New(config, contender.NewLocalStore())
+	s = service.New(config, dynamostore.NewInMemoryStore())
 	baseAddress = fmt.Sprintf("http://127.0.0.1:%d", openPort)
 	contenderAddress = fmt.Sprintf("%s/contenders", baseAddress)
 	return nil

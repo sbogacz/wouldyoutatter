@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/pkg/errors"
 )
 
@@ -35,8 +36,12 @@ func (s *localStore) Get(ctx context.Context, item Item) (Item, error) {
 		return nil, errors.New("must provide a non-empty name")
 	}
 	s.l.RLock()
-	it := s.items[item.Key()]
+	it, ok := s.items[item.Key()]
 	s.l.RUnlock()
+
+	if !ok {
+		return nil, errors.New(dynamodb.ErrCodeResourceNotFoundException)
+	}
 	return it, nil
 }
 

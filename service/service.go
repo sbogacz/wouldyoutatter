@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/sbogacz/wouldyoutatter/contender"
+	"github.com/sbogacz/wouldyoutatter/dynamostore"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -17,16 +18,16 @@ import (
 // service
 type Service struct {
 	config         Config
-	contenderStore contender.Storer
+	contenderStore *contender.Store
 	router         *chi.Mux
 	cancel         chan struct{}
 }
 
 // New tries to cerate a new instance of Service
-func New(c Config, storer contender.Storer) *Service {
+func New(c Config, storer dynamostore.Storer) *Service {
 	return &Service{
 		config:         c,
-		contenderStore: storer,
+		contenderStore: contender.NewStore(storer),
 		router:         chi.NewRouter(),
 		cancel:         make(chan struct{}),
 	}
@@ -69,8 +70,8 @@ func (s *Service) createContender(w http.ResponseWriter, req *http.Request) {
 	d := json.NewDecoder(req.Body)
 	defer req.Body.Close()
 
-	c := contender.Contender{}
-	if err := d.Decode(&c); err != nil {
+	c := &contender.Contender{}
+	if err := d.Decode(c); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("failed to decode payload"))
 		log.Errorf("failed to decode payload: %v", err)

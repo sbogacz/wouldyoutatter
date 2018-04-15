@@ -14,7 +14,7 @@ const (
 	contenderTableName = "contenders"
 )
 
-// Name returns the Contenders name, and implements the dynamostore Item interface
+// Key returns the Contenders name, and implements the dynamostore Item interface
 func (c Contender) Key() string {
 	return c.Name
 }
