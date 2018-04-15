@@ -101,10 +101,16 @@ func bytesToAttributeValue(b []byte) dynamodb.AttributeValue {
 }
 
 func getString(a dynamodb.AttributeValue) string {
+	if a.S == nil {
+		return ""
+	}
 	return *a.S
 }
 
 func getInt(a dynamodb.AttributeValue) (int, error) {
+	if a.N == nil {
+		return 0, nil
+	}
 	return strconv.Atoi(*a.N)
 }
 

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/go-chi/chi"
 	"github.com/sbogacz/wouldyoutatter/contender"
 	"github.com/sbogacz/wouldyoutatter/dynamostore"
@@ -24,13 +25,25 @@ type Service struct {
 }
 
 // New tries to cerate a new instance of Service
-func New(c Config, storer dynamostore.Storer) *Service {
+func New(c Config) (*Service, error) {
+	var storer dynamostore.Storer
+	if c.AWSRegion == "" {
+		storer = dynamostore.NewInMemoryStore()
+	} else {
+		fmt.Println("hurr")
+		cfg, err := c.AWSConfig()
+		if err != nil {
+			return nil, err
+		}
+		storer = dynamostore.New(dynamodb.New(cfg))
+	}
+
 	return &Service{
 		config:         c,
 		contenderStore: contender.NewStore(storer),
 		router:         chi.NewRouter(),
 		cancel:         make(chan struct{}),
-	}
+	}, nil
 }
 
 // Start starts the server

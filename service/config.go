@@ -3,7 +3,6 @@ package service
 import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli"
 )
 
@@ -14,11 +13,10 @@ var (
 // Config holds the service variables we want to
 // to configure from the cli/env
 type Config struct {
-	Port         int
-	AWSSecretKey string
-	AWSAccessKey string
-	AWSRegion    string
-	AWSEndpoint  string
+	Port           int
+	AWSAccessKeyID string
+	AWSSecretKey   string
+	AWSRegion      string
 }
 
 // Flags r	eturns the slice of cli.Flags that we have
@@ -32,18 +30,43 @@ func (c *Config) Flags() []cli.Flag {
 			Value:       8080,
 		},
 		cli.StringFlag{
+			Name:        "aws-access-key-id",
+			EnvVar:      "AWS_ACCESS_KEY_ID",
+			Usage:       "the AWS access key to sign requests with",
+			Destination: &c.AWSAccessKeyID,
+		},
+		cli.StringFlag{
 			Name:        "aws-secret-key",
 			EnvVar:      "AWS_SECRET_ACCESS_KEY",
 			Usage:       "the AWS secret key to sign requests with",
 			Destination: &c.AWSSecretKey,
 		},
+		cli.StringFlag{
+			Name:        "aws-region",
+			EnvVar:      "AWS_REGION",
+			Usage:       "the AWS region to connect to",
+			Destination: &c.AWSRegion,
+		},
 	}
 }
 
-func (c *Config) GetAWSConfig() error {
-	_, err := external.LoadDefaultAWSConfig()
+// AWSConfig returns an aws Config based on the env vars/flags
+// provided
+func (c *Config) AWSConfig() (aws.Config, error) {
+	cfg, err := external.LoadDefaultAWSConfig()
 	if err != nil {
-		return errors.Wrap(err, "failed to load default AWS config")
+		return aws.Config{}, err
 	}
-	return nil
+	cfg.Region = c.AWSRegion
+	cfg.Credentials = c
+	return cfg, nil
+}
+
+// Retrieve allows the Config to be used as an aws.Provider
+func (c *Config) Retrieve() (aws.Credentials, error) {
+	return aws.Credentials{
+		AccessKeyID:     c.AWSAccessKeyID,
+		SecretAccessKey: c.AWSSecretKey,
+		CanExpire:       false,
+	}, nil
 }

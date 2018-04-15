@@ -6,6 +6,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 )
 
+// Item is the interface for things we can store in using
+// the Storer
 type Item interface {
 	Key() string
 	PutItemInput() *dynamodb.PutItemInput

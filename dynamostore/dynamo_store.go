@@ -33,7 +33,7 @@ func (s *dynamoStore) Set(ctx context.Context, item Item) error {
 	req := s.dynamo.PutItemRequest(input)
 
 	if _, err := req.Send(); err != nil {
-		return errors.Wrap(err, "failed to write Item %s to the database")
+		return errors.Wrapf(err, "failed to write Item %s to the database", item.Key())
 	}
 
 	return nil
@@ -62,7 +62,7 @@ func (s *dynamoStore) Update(ctx context.Context, item Item) error {
 	req := s.dynamo.UpdateItemRequest(input)
 
 	if _, err := req.Send(); err != nil {
-		return errors.Wrap(err, "failed to send Get request")
+		return errors.Wrap(err, "failed to send Update request")
 	}
 	return nil
 }
@@ -76,7 +76,7 @@ func (s *dynamoStore) Delete(ctx context.Context, item Item) error {
 	req := s.dynamo.DeleteItemRequest(input)
 
 	if _, err := req.Send(); err != nil {
-		return errors.Wrap(err, "failed to send Get request")
+		return errors.Wrap(err, "failed to send Delete request")
 	}
 	return nil
 }
