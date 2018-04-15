@@ -33,6 +33,10 @@ func (c Contender) Marshal() map[string]dynamodb.AttributeValue {
 
 // Unmarshal tries to decode a Contender from a dynamo response
 func (c *Contender) Unmarshal(aMap map[string]dynamodb.AttributeValue) error {
+	if len(aMap) == 0 {
+		return errors.New(dynamodb.ErrCodeResourceNotFoundException)
+	}
+
 	wins, err := getInt(aMap["Wins"])
 	if err != nil {
 		return errors.Wrap(err, "failed to read Wins attribute")

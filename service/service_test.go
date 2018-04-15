@@ -126,20 +126,12 @@ func setupTables(config service.Config) error {
 				AttributeName: aws.String("Name"),
 				AttributeType: dynamodb.ScalarAttributeTypeS,
 			},
-			//			{
-			//				AttributeName: aws.String("Score"),
-			//				AttributeType: dynamodb.ScalarAttributeTypeN,
-			//			},
 		},
 		KeySchema: []dynamodb.KeySchemaElement{
 			{
 				AttributeName: aws.String("Name"),
 				KeyType:       dynamodb.KeyTypeHash,
 			},
-			//			{
-			//				AttributeName: aws.String("Score"),
-			//				KeyType:       dynamodb.KeyTypeRange,
-			//			},
 		},
 		ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
 			ReadCapacityUnits:  aws.Int64(5),
