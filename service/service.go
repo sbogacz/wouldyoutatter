@@ -30,7 +30,6 @@ func New(c Config) (*Service, error) {
 	if c.AWSRegion == "" {
 		storer = dynamostore.NewInMemoryStore()
 	} else {
-		fmt.Println("hurr")
 		cfg, err := c.AWSConfig()
 		if err != nil {
 			return nil, err
@@ -69,8 +68,10 @@ func (s *Service) Start() {
 	}()
 
 	fmt.Printf("Listening on port: %d\n", s.config.Port)
-	if err := h.ListenAndServe(); err != http.ErrServerClosed {
-		log.Fatal(err)
+	if err := h.ListenAndServe(); err != nil {
+		if err != http.ErrServerClosed {
+			log.Fatal(err)
+		}
 	}
 }
 
