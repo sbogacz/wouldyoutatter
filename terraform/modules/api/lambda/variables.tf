@@ -40,6 +40,11 @@ variable "env_vars" {
 /**********************************************
  * VPC Configuration, optional (if not in VPC)
  **********************************************/
+variable "enable_vpc" {
+  default     = false
+  description = "a boolean to indicate whether this Lambda should be configured with a VPC"
+}
+
 variable "vpc_sg_ids" {
   type        = "list"
   default     = []
@@ -53,17 +58,9 @@ variable "subnet_ids" {
 }
 
 /**********************************************
- * Dynamo Access Policy, optional
+ * Additional Access Policies, optional
  **********************************************/
-variable "dynamo_policy_arn" {
-  default     = ""
-  description = "the ARN of a dynamo access policy for the Lambda function, if needed"
-}
-
-/**********************************************
- * RDS Access Policy, optional
- **********************************************/
-variable "rds_policy_arn" {
-  default     = ""
-  description = "the ARN of an RDS access policy for the Lambda function, if needed"
+variable "attach_policies" {
+  default     = []
+  description = "a list of any additional policy ARNs that you'd like the lambda to have access to"
 }

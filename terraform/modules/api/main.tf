@@ -1,5 +1,5 @@
-data "aws_iam_policy" "AWSLambdaDynamoDBExecutionRole" {
-  arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaDynamoDBExecutionRole"
+data "aws_iam_policy" "AmazonDynamoDBFullAccess" {
+  arn = "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
 }
 
 module "lambda" {
@@ -15,7 +15,7 @@ module "lambda" {
   executable_name = "${var.lambda_executable_name}"
 
   # Dynamo policy
-  dynamo_policy_arn = "${data.aws_iam_policy.AWSLambdaDynamoDBExecutionRole.arn}"
+  attach_policies = ["${data.aws_iam_policy.AmazonDynamoDBFullAccess.arn}"]
 
   # Env variables
   env_vars = "${merge("${var.lambda_env_vars}", "${local.db_map}")}"

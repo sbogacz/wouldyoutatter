@@ -32,11 +32,6 @@ variable "aws_region" {
   default     = "us-east-2"
 }
 
-variable "account_id" {
-  type        = "string"
-  description = "the AWS account id you are deploying to"
-}
-
 /**************************
  * Lambda Stuff
  **************************/
