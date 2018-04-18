@@ -1,10 +1,9 @@
-package service
+package contender
 
 import (
 	"context"
 
 	"github.com/pkg/errors"
-	uuid "github.com/satori/go.uuid"
 	"github.com/sbogacz/wouldyoutatter/dynamostore"
 )
 
@@ -25,6 +24,16 @@ func (s *TokenStore) CreateToken(ctx context.Context, contender1, contender2 str
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate UUID for token")
 	}
+	t := &Token{
+		ID:         uid.String(),
+		Contender1: contender1,
+		Contender2: contender2,
+	}
+	return t, nil
+}
+
+func (s *TokenStore) ValidateToken(ctx context.Context, uid, contender1, contender2 string) (*Token, error) {
+
 	t := &Token{
 		ID:         uid.String(),
 		Contender1: contender1,

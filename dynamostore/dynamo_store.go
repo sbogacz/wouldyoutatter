@@ -7,11 +7,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const (
-	contenderTableName   = "contenders"
-	leaderboardTableName = "leaderboard"
-)
-
 type dynamoStore struct {
 	dynamo *dynamodb.DynamoDB
 }
@@ -33,7 +28,11 @@ func (s *dynamoStore) Set(ctx context.Context, item Item) error {
 	req := s.dynamo.PutItemRequest(input)
 
 	if _, err := req.Send(); err != nil {
-		return errors.Wrapf(err, "failed to write Item %s to the database", item.Key())
+		if createTableErr := s.createTableOnError(ctx, item, err); err != nil {
+			return errors.Wrapf(createTableErr, "failed to write Item %s to the database", item.Key())
+		}
+		// retry after creating table
+		return s.Set(ctx, item)
 	}
 
 	return nil
@@ -48,7 +47,11 @@ func (s *dynamoStore) Get(ctx context.Context, item Item) (Item, error) {
 	req := s.dynamo.GetItemRequest(input)
 	output, err := req.Send()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to send Get request")
+		if createTableErr := s.createTableOnError(ctx, item, err); err != nil {
+			return nil, errors.Wrap(createTableErr, "failed to send Get request")
+		}
+		// retry after creating table
+		return s.Get(ctx, item)
 	}
 
 	return item, item.Unmarshal(output.Item)
@@ -63,7 +66,11 @@ func (s *dynamoStore) Update(ctx context.Context, item Item) error {
 	req := s.dynamo.UpdateItemRequest(input)
 
 	if _, err := req.Send(); err != nil {
-		return errors.Wrap(err, "failed to send Update request")
+		if createTableErr := s.createTableOnError(ctx, item, err); err != nil {
+			return errors.Wrap(createTableErr, "failed to send Update request")
+		}
+		// retry after creating table
+		return s.Update(ctx, item)
 	}
 	return nil
 }
@@ -77,7 +84,25 @@ func (s *dynamoStore) Delete(ctx context.Context, item Item) error {
 	req := s.dynamo.DeleteItemRequest(input)
 
 	if _, err := req.Send(); err != nil {
-		return errors.Wrap(err, "failed to send Delete request")
+		if createTableErr := s.createTableOnError(ctx, item, err); err != nil {
+			return errors.Wrap(createTableErr, "failed to send Delete request")
+		}
+		// retry after creating table
+		return s.Delete(ctx, item)
 	}
+	return nil
+}
+
+func (s *dynamoStore) createTableOnError(ctx context.Context, item Item, err error) error {
+	if err.Error() != dynamodb.ErrCodeResourceNotFoundException {
+		return err
+	}
+
+	input := item.CreateTableInput()
+	req := s.dynamo.CreateTableRequest(input)
+	if _, err := req.Send(); err != nil {
+		return errors.Wrapf(err, "failed to create table for %s", item.Key())
+	}
+
 	return nil
 }

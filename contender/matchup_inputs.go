@@ -53,7 +53,7 @@ func (m *Matchup) Unmarshal(aMap map[string]dynamodb.AttributeValue) error {
 // GetItemInput generates the dynamodb.GetItemInput for the given contender
 func (m *Matchup) GetItemInput() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
-		TableName: aws.String(contenderTableName),
+		TableName: aws.String(matchupTableName),
 		Key: map[string]dynamodb.AttributeValue{
 			"Contender1": {S: aws.String(m.Contender1)},
 			"Contender2": {S: aws.String(m.Contender2)},
@@ -64,7 +64,7 @@ func (m *Matchup) GetItemInput() *dynamodb.GetItemInput {
 // PutItemInput generates the dynamodb.PutItemInput for the given contender
 func (m *Matchup) PutItemInput() *dynamodb.PutItemInput {
 	return &dynamodb.PutItemInput{
-		TableName: aws.String(contenderTableName),
+		TableName: aws.String(matchupTableName),
 		Item:      m.Marshal(),
 	}
 }
@@ -72,7 +72,7 @@ func (m *Matchup) PutItemInput() *dynamodb.PutItemInput {
 // DeleteItemInput generates the dynamodb.DeleteItemInput for the given contender
 func (m *Matchup) DeleteItemInput() *dynamodb.DeleteItemInput {
 	return &dynamodb.DeleteItemInput{
-		TableName: aws.String(contenderTableName),
+		TableName: aws.String(matchupTableName),
 		Key: map[string]dynamodb.AttributeValue{
 			"Contender1": {S: aws.String(m.Contender1)},
 			"Contender2": {S: aws.String(m.Contender2)},
