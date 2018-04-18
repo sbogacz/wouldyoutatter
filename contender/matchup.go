@@ -2,6 +2,7 @@ package contender
 
 import (
 	"context"
+	"sort"
 
 	"github.com/pkg/errors"
 	"github.com/sbogacz/wouldyoutatter/dynamostore"
@@ -56,16 +57,25 @@ func (s *MatchupStore) Delete(ctx context.Context, contender1, contender2 string
 	return errors.Wrap(s.db.Delete(ctx, m), "failed to delete matchup")
 }
 
-// DeclareWinner lets you declarea a container a winner by name
-func (s *MatchupStore) DeclareWinner(ctx context.Context, name string) error {
-	winner := NewWinner(name)
-
-	return errors.Wrapf(s.db.Update(ctx, winner), "failed to declare matchup %s the winner", name)
+// ScoreMatchup lets you declare
+func (s *MatchupStore) ScoreMatchup(ctx context.Context, winner, loser string) error {
+	scoredMatchup := newScoredMatchup(winner, loser)
+	return errors.Wrapf(s.db.Update(ctx, scoredMatchup), "failed to score matchup between winner %s the loser %s", winner, loser)
 }
 
-// DeclareLoser lets you declarea a container a loser by name
-func (s *MatchupStore) DeclareLoser(ctx context.Context, name string) error {
-	loser := NewLoser(name)
+// OrderMatchup is a helper function to ensure the contenders are ordered
+// lexicographically
+func OrderMatchup(c1, c2 string) (contender1, contender2 string) {
+	contenders := []string{c1, c2}
+	sort.Strings(contenders)
+	return contenders[0], contenders[1]
+}
 
-	return errors.Wrapf(s.db.Update(ctx, loser), "failed to declare matchup %s the loser", name)
+func newScoredMatchup(winner, loser string) *Matchup {
+	contender1, contender2 := OrderMatchup(winner, loser)
+	return &Matchup{
+		Contender1:    contender1,
+		Contender2:    contender2,
+		contender1Won: contender1 == winner,
+	}
 }
