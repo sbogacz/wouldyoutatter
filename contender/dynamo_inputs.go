@@ -92,6 +92,25 @@ func (c *Contender) UpdateItemInput() *dynamodb.UpdateItemInput {
 	}
 	return winInput(c.Name)
 }
+
+func winInput(name string) *dynamodb.UpdateItemInput {
+	return &dynamodb.UpdateItemInput{
+		TableName:                 aws.String(contenderTableName),
+		Key:                       map[string]dynamodb.AttributeValue{"Name": {S: aws.String(name)}},
+		UpdateExpression:          aws.String("ADD Wins :w"),
+		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{"w": {N: aws.String("1")}},
+	}
+}
+
+func lossInput(name string) *dynamodb.UpdateItemInput {
+	return &dynamodb.UpdateItemInput{
+		TableName:                 aws.String(contenderTableName),
+		Key:                       map[string]dynamodb.AttributeValue{"Name": {S: aws.String(name)}},
+		UpdateExpression:          aws.String("ADD Losses :l"),
+		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{"l": {N: aws.String("1")}},
+	}
+}
+
 func stringToAttributeValue(s string) dynamodb.AttributeValue {
 	return dynamodb.AttributeValue{S: aws.String(s)}
 }
@@ -120,22 +139,4 @@ func getInt(a dynamodb.AttributeValue) (int, error) {
 
 func getBytes(a dynamodb.AttributeValue) []byte {
 	return a.B
-}
-
-func winInput(name string) *dynamodb.UpdateItemInput {
-	return &dynamodb.UpdateItemInput{
-		TableName:                 aws.String(contenderTableName),
-		Key:                       map[string]dynamodb.AttributeValue{"Name": {S: aws.String(name)}},
-		UpdateExpression:          aws.String("ADD Wins :w"),
-		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{"w": {N: aws.String("1")}},
-	}
-}
-
-func lossInput(name string) *dynamodb.UpdateItemInput {
-	return &dynamodb.UpdateItemInput{
-		TableName:                 aws.String(contenderTableName),
-		Key:                       map[string]dynamodb.AttributeValue{"Name": {S: aws.String(name)}},
-		UpdateExpression:          aws.String("ADD Losses :l"),
-		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{"l": {N: aws.String("1")}},
-	}
 }

@@ -86,12 +86,3 @@ func (s *Store) DeclareLoser(ctx context.Context, name string) error {
 
 	return errors.Wrapf(s.db.Update(ctx, loser), "failed to declare contender %s the loser", name)
 }
-
-// Matchup is the model for the head-to-head records
-// between contenders
-type Matchup struct {
-	Contender1     string
-	Contender2     string
-	Contender1Wins int
-	Contender2Wins int
-}
