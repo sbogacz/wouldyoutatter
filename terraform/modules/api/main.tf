@@ -18,7 +18,7 @@ module "lambda" {
   attach_policies = ["${data.aws_iam_policy.AmazonDynamoDBFullAccess.arn}"]
 
   # Env variables
-  env_vars = "${merge("${var.lambda_env_vars}", "${local.db_map}")}"
+  env_vars = "${var.lambda_env_vars}"
 }
 
 module "apigw" {

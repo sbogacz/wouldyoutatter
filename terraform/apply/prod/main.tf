@@ -1,7 +1,7 @@
 terraform {
   backend "s3" {
     bucket = "tatter-tf-bucket"
-    key    = "wouldyoutattter/states/prod"
+    key    = "wouldyoutatter/states/prod"
     region = "us-west-2"
   }
 }
@@ -11,7 +11,7 @@ provider "aws" {
 }
 
 locals {
-  filepath = "${path.module}/../../../templates-of-doom.zip"
+  filepath = "${path.module}/../../../wouldyoutatter.zip"
 }
 
 module "api" {
@@ -32,6 +32,10 @@ module "api" {
   lambda_function_name     = "wouldyoutatter"
   lambda_executable_name   = "wouldyoutatter"
   lambda_function_filepath = "${local.filepath}"
+
+  lambda_env_vars = {
+    contender_table = "contenders"
+  }
 }
 
 module "website" {
