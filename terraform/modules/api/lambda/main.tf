@@ -38,7 +38,8 @@ resource "aws_iam_role_policy_attachment" "lambda_policy_attachment" {
   policy_arn = "${element(var.attach_policies, count.index)}"
 }
 
-resource "aws_lambda_function" "lambda" {
+resource "aws_lambda_function" "vpc_lambda" {
+  count            = "${var.enable_vpc ? 1 : 0}"
   filename         = "${var.filepath}"
   function_name    = "${var.function_name}"
   role             = "${aws_iam_role.lambda_role.arn}"
@@ -48,10 +49,27 @@ resource "aws_lambda_function" "lambda" {
   tags             = "${var.tags}"
 
   vpc_config = {
-    subnet_ids = ["${var.subnet_ids}"]
+    subnet_ids = ["${compact(var.subnet_ids)}"]
 
-    security_group_ids = ["${var.vpc_sg_ids}"]
+    security_group_ids = ["${compact(var.vpc_sg_ids)}"]
   }
+
+  environment {
+    variables = "${var.env_vars}"
+  }
+}
+
+# we need this logic until https://github.com/terraform-providers/terraform-provider-aws/issues/443
+# gets resolved
+resource "aws_lambda_function" "lambda" {
+  count            = "${var.enable_vpc ? 0 : 1}"
+  filename         = "${var.filepath}"
+  function_name    = "${var.function_name}"
+  role             = "${aws_iam_role.lambda_role.arn}"
+  handler          = "${var.executable_name}"
+  source_code_hash = "${base64sha256(file("${var.filepath}"))}"
+  runtime          = "go1.x"
+  tags             = "${var.tags}"
 
   environment {
     variables = "${var.env_vars}"

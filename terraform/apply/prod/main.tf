@@ -17,6 +17,8 @@ locals {
 module "api" {
   source = "../../modules/api"
 
+  aws_region = "us-west-2"
+
   // API config
   api_name        = "wouldyoutatter"
   api_description = "an API bringing bad tattoo decisions to cloud scale"

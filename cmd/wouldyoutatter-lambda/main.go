@@ -1,16 +1,17 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/sendgrid/templates-of-doom/service"
+	"github.com/sbogacz/wouldyoutatter/service"
+	"github.com/urfave/cli"
 )
 
 var (
@@ -34,14 +35,29 @@ func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 }
 
 func main() {
-	var err error
-	flag.Parse()
-	s, err = service.New(*config)
+	app := cli.NewApp()
+	app.Usage = "this is the CLI app version of wouldyoutatter"
+	app.Flags = config.Flags()
+	app.Action = serve
+
+	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatalf("failed to start service with err: %v", err)
 	}
+}
+
+func serve(c *cli.Context) error {
+
+	var err error
+	s, err = service.New(*config)
+	if err != nil {
+		return err
+	}
 	go s.Start()
 	lambda.Start(Handler)
+
+	s.Stop()
+	return nil
 }
 
 // APIGWReqToHTTP converts APIGatewayProxyRequests and translates them to stdlib
