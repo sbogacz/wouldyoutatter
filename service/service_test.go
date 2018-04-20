@@ -35,12 +35,6 @@ func TestMain(m *testing.M) {
 		log.Fatalf("failed to get free port for tests: %v", err)
 	}
 	config := service.Config{Port: openPort}
-	if *runAgainstLocalDynamo {
-		config.AWSRegion = "local"
-		if err := setupTables(config); err != nil {
-			log.Fatalf("failed to set up tables for tests: %v", err)
-		}
-	}
 
 	if err := setupService(config); err != nil {
 		log.Fatalf("failed to setup for tests: %v", err)
@@ -88,7 +82,7 @@ func TestSimpleContenderCRUD(t *testing.T) {
 		storedContender := contender.Contender{}
 		err = d.Decode(&storedContender)
 		require.NoError(t, err)
-		assert.Equal(t, storedContender.Description, origContender.Description)
+		require.Equal(t, storedContender.Description, origContender.Description)
 	})
 	t.Run("delete contender", func(t *testing.T) {
 		req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/%s", contenderAddress, origContender.Name), nil)
@@ -114,43 +108,6 @@ func setupService(config service.Config) error {
 	return nil
 }
 
-func setupTables(config service.Config) error {
-	cfg, err := config.AWSConfig()
-	if err != nil {
-		return err
-	}
-	svc := dynamodb.New(cfg)
-	input := &dynamodb.CreateTableInput{
-		AttributeDefinitions: []dynamodb.AttributeDefinition{
-			{
-				AttributeName: aws.String("Name"),
-				AttributeType: dynamodb.ScalarAttributeTypeS,
-			},
-		},
-		KeySchema: []dynamodb.KeySchemaElement{
-			{
-				AttributeName: aws.String("Name"),
-				KeyType:       dynamodb.KeyTypeHash,
-			},
-		},
-		ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
-			ReadCapacityUnits:  aws.Int64(5),
-			WriteCapacityUnits: aws.Int64(5),
-		},
-		TableName: aws.String("contenders"),
-	}
-
-	req := svc.CreateTableRequest(input)
-	_, err = req.Send()
-	if err != nil {
-		if err.Error() == dynamodb.ErrCodeResourceInUseException {
-			fmt.Println("tables already exist")
-		}
-		return err
-	}
-	return nil
-}
-
 func teardownTables(config service.Config) error {
 	cfg, err := config.AWSConfig()
 	if err != nil {
@@ -158,7 +115,7 @@ func teardownTables(config service.Config) error {
 	}
 	svc := dynamodb.New(cfg)
 	input := &dynamodb.DeleteTableInput{
-		TableName: aws.String("contenders"),
+		TableName: aws.String("Contenders"),
 	}
 
 	req := svc.DeleteTableRequest(input)

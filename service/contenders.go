@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/sbogacz/wouldyoutatter/contender"
+	"github.com/sbogacz/wouldyoutatter/dynamostore"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -38,15 +39,24 @@ func (s *Service) getContender(w http.ResponseWriter, req *http.Request) {
 
 	c, err := s.contenderStore.Get(context.Background(), contenderID)
 	if err != nil {
+		if dynamostore.NotFoundError(err) {
+
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(fmt.Sprintf("no contender found with id: %s", contenderID)))
+			log.Infof("no contender found with name: %s", contenderID)
+			return
+		}
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("failed to store contender"))
-		log.Errorf("failed to store contender: %v", err)
+		w.Write([]byte("failed to retrieve contender"))
+		fmt.Printf("WAT %v\n", err)
+		log.Errorf("failed to retrieve contender: %v", err)
 		return
 	}
 
 	if c == nil {
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(fmt.Sprintf("no contender found with id: %s", contenderID)))
+		log.Infof("no contender found with name: %s", contenderID)
 		return
 	}
 
@@ -54,6 +64,7 @@ func (s *Service) getContender(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("failed to encode contender"))
+		log.Errorf("failed to retrieve contender: %v", err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)

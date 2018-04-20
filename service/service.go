@@ -37,6 +37,10 @@ func New(c Config) (*Service, error) {
 		storer = dynamostore.New(dynamodb.New(cfg))
 	}
 
+	// set log level
+	log.SetLevel(c.logLevelToLogrus())
+
+	fmt.Printf("log level at: %s", log.GetLevel().String())
 	return &Service{
 		config:         c,
 		contenderStore: contender.NewStore(storer),
@@ -57,13 +61,13 @@ func (s *Service) Start() {
 		})
 	})
 	// route the matchups endpoints
-	s.router.Route("/matchups", func(r chi.Router) {
+	/*s.router.Route("/matchups", func(r chi.Router) {
 		r.Get("/", s.chooseMatchup)
 		r.Route("/{contenderID1}/{contenderID2}", func(r chi.Router) {
 			r.Get("/", s.getMatchupStats)
 			r.Post("/", s.voteOnMatchup)
 		})
-	})
+	})*/
 
 	h := &http.Server{
 		Addr:         fmt.Sprintf(":%d", s.config.Port),

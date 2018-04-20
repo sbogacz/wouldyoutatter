@@ -3,6 +3,7 @@ package service
 import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
+	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 )
 
@@ -17,6 +18,7 @@ type Config struct {
 	AWSAccessKeyID string
 	AWSSecretKey   string
 	AWSRegion      string
+	LogLevel       string
 }
 
 // Flags r	eturns the slice of cli.Flags that we have
@@ -47,6 +49,13 @@ func (c *Config) Flags() []cli.Flag {
 			Usage:       "the AWS region to connect to",
 			Destination: &c.AWSRegion,
 		},
+		cli.StringFlag{
+			Name:        "log-level",
+			EnvVar:      "LOG_LEVEL",
+			Usage:       "the log level that wouldyoutatter should log to stdout at, defaults to INFO",
+			Destination: &c.LogLevel,
+			Value:       "INFO",
+		},
 	}
 }
 
@@ -69,4 +78,17 @@ func (c *Config) Retrieve() (aws.Credentials, error) {
 		SecretAccessKey: c.AWSSecretKey,
 		CanExpire:       false,
 	}, nil
+}
+
+func (c *Config) logLevelToLogrus() log.Level {
+	switch c.LogLevel {
+	case "DEBUG":
+		return log.DebugLevel
+	case "WARN":
+		return log.WarnLevel
+	case "ERROR":
+		return log.ErrorLevel
+	default:
+	}
+	return log.InfoLevel
 }

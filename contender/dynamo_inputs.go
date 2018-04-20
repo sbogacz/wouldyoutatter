@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	contenderTableName = "contenders"
+	contenderTableName = "Contenders"
 )
 
 var _ dynamostore.Item = (*Contender)(nil)

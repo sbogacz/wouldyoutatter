@@ -47,11 +47,7 @@ func (s *dynamoStore) Get(ctx context.Context, item Item) (Item, error) {
 	req := s.dynamo.GetItemRequest(input)
 	output, err := req.Send()
 	if err != nil {
-		if createTableErr := s.createTableOnError(ctx, item, err); err != nil {
-			return nil, errors.Wrap(createTableErr, "failed to send Get request")
-		}
-		// retry after creating table
-		return s.Get(ctx, item)
+		return nil, errors.Wrap(err, "failed to send Get request")
 	}
 
 	return item, item.Unmarshal(output.Item)
@@ -84,11 +80,7 @@ func (s *dynamoStore) Delete(ctx context.Context, item Item) error {
 	req := s.dynamo.DeleteItemRequest(input)
 
 	if _, err := req.Send(); err != nil {
-		if createTableErr := s.createTableOnError(ctx, item, err); err != nil {
-			return errors.Wrap(createTableErr, "failed to send Delete request")
-		}
-		// retry after creating table
-		return s.Delete(ctx, item)
+		return errors.Wrap(err, "failed to send Delete request")
 	}
 	return nil
 }
