@@ -56,9 +56,6 @@ func (s *Store) Get(ctx context.Context, name string) (*Contender, error) {
 	c := &Contender{Name: name}
 	item, err := s.db.Get(ctx, c)
 	if err != nil {
-		if dynamostore.NotFoundError(err) {
-			return nil, nil
-		}
 		return nil, errors.Wrap(err, "failed to retrieve contender")
 
 	}

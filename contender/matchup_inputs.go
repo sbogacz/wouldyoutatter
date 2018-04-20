@@ -4,11 +4,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/pkg/errors"
+	"github.com/sbogacz/wouldyoutatter/dynamostore"
 )
 
 const (
 	matchupTableName = "Matchups"
 )
+
+var _ dynamostore.Item = (*Matchup)(nil)
 
 // Key returns the Contenders name, and implements the dynamostore Item interface
 func (m Matchup) Key() string {
@@ -50,7 +53,38 @@ func (m *Matchup) Unmarshal(aMap map[string]dynamodb.AttributeValue) error {
 	return nil
 }
 
-// GetItemInput generates the dynamodb.GetItemInput for the given contender
+// CreateTableInput generates the dynamo input to create the matchups table
+func (m *Matchup) CreateTableInput() *dynamodb.CreateTableInput {
+	return &dynamodb.CreateTableInput{
+		AttributeDefinitions: []dynamodb.AttributeDefinition{
+			{
+				AttributeName: aws.String("Contender1"),
+				AttributeType: dynamodb.ScalarAttributeTypeS,
+			},
+			{
+				AttributeName: aws.String("Contender2"),
+				AttributeType: dynamodb.ScalarAttributeTypeS,
+			},
+		},
+		KeySchema: []dynamodb.KeySchemaElement{
+			{
+				AttributeName: aws.String("Contender1"),
+				KeyType:       dynamodb.KeyTypeHash,
+			},
+			{
+				AttributeName: aws.String("Contender2"),
+				KeyType:       dynamodb.KeyTypeRange,
+			},
+		},
+		ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
+			ReadCapacityUnits:  aws.Int64(5),
+			WriteCapacityUnits: aws.Int64(5),
+		},
+		TableName: aws.String(matchupTableName),
+	}
+}
+
+// GetItemInput generates the dynamodb.GetItemInput for the given matchup
 func (m *Matchup) GetItemInput() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
 		TableName: aws.String(matchupTableName),
@@ -61,7 +95,7 @@ func (m *Matchup) GetItemInput() *dynamodb.GetItemInput {
 	}
 }
 
-// PutItemInput generates the dynamodb.PutItemInput for the given contender
+// PutItemInput generates the dynamodb.PutItemInput for the given matchup
 func (m *Matchup) PutItemInput() *dynamodb.PutItemInput {
 	return &dynamodb.PutItemInput{
 		TableName: aws.String(matchupTableName),
@@ -69,7 +103,7 @@ func (m *Matchup) PutItemInput() *dynamodb.PutItemInput {
 	}
 }
 
-// DeleteItemInput generates the dynamodb.DeleteItemInput for the given contender
+// DeleteItemInput generates the dynamodb.DeleteItemInput for the given matchup
 func (m *Matchup) DeleteItemInput() *dynamodb.DeleteItemInput {
 	return &dynamodb.DeleteItemInput{
 		TableName: aws.String(matchupTableName),
@@ -80,7 +114,7 @@ func (m *Matchup) DeleteItemInput() *dynamodb.DeleteItemInput {
 	}
 }
 
-// UpdateItemInput generates the dynamodb.UpdateItemInput for the given contender
+// UpdateItemInput generates the dynamodb.UpdateItemInput for the given matchup
 func (m *Matchup) UpdateItemInput() *dynamodb.UpdateItemInput {
 	if m.contender1Won {
 		return m.contender1WinInput()

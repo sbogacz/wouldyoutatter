@@ -7,12 +7,13 @@ import (
 	"github.com/sbogacz/wouldyoutatter/dynamostore"
 )
 
-// Leaderboard is the model for the head-to-head records
+// LeaderboardEntry is the model for the head-to-head records
 // between leaderboards
-type Leaderboard struct {
-	Contender string
-	Score     int
-	Wins      int
+type LeaderboardEntry struct {
+	Contender   string
+	Score       int
+	Wins        int
+	entrantLost bool
 }
 
 // LeaderboardStore uses a storer to interact with the underlying Leaderboard db
@@ -28,13 +29,13 @@ func NewLeaderboardStore(db dynamostore.Storer) *LeaderboardStore {
 }
 
 // Set lets you save a leaderboard
-func (s *LeaderboardStore) Set(ctx context.Context, m *Leaderboard) error {
+func (s *LeaderboardStore) Set(ctx context.Context, m *LeaderboardEntry) error {
 	return errors.Wrap(s.db.Set(ctx, m), "failed to save leaderboard")
 }
 
 // Get lets you retrieve a leaderboard by the leaderboard names
-func (s *LeaderboardStore) Get(ctx context.Context, contender string) (*Leaderboard, error) {
-	m := &Leaderboard{Contender: contender}
+func (s *LeaderboardStore) Get(ctx context.Context, contender string) (*LeaderboardEntry, error) {
+	m := &LeaderboardEntry{Contender: contender}
 	item, err := s.db.Get(ctx, m)
 	if err != nil {
 		if dynamostore.NotFoundError(err) {
@@ -43,26 +44,26 @@ func (s *LeaderboardStore) Get(ctx context.Context, contender string) (*Leaderbo
 		return nil, errors.Wrap(err, "failed to retrieve leaderboard")
 
 	}
-	ret := item.(*Leaderboard)
+	ret := item.(*LeaderboardEntry)
 	return ret, nil
 }
 
-// Delete lets you delete a container by name
+// Delete lets you delete a leaderboard entry by name
 func (s *LeaderboardStore) Delete(ctx context.Context, contender string) error {
-	m := &Leaderboard{Contender: contender}
+	m := &LeaderboardEntry{Contender: contender}
 
 	return errors.Wrap(s.db.Delete(ctx, m), "failed to delete leaderboard")
 }
 
-// DeclareWinner lets you declarea a container a winner by name
-func (s *LeaderboardStore) DeclareWinner(ctx context.Context, name string) error {
+// UpdateWinningEntry lets you declarea a leaderboard entry a winner by name
+func (s *LeaderboardStore) UpdateWinningEntry(ctx context.Context, name string) error {
 	winner := NewWinner(name)
 
 	return errors.Wrapf(s.db.Update(ctx, winner), "failed to declare leaderboard %s the winner", name)
 }
 
-// DeclareLoser lets you declarea a container a loser by name
-func (s *LeaderboardStore) DeclareLoser(ctx context.Context, name string) error {
+// UpdateLosingEntry lets you declarea a leaderboard entry a loser by name
+func (s *LeaderboardStore) UpdateLosingEntry(ctx context.Context, name string) error {
 	loser := NewLoser(name)
 
 	return errors.Wrapf(s.db.Update(ctx, loser), "failed to declare leaderboard %s the loser", name)

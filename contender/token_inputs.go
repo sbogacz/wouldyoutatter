@@ -4,11 +4,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/pkg/errors"
+	"github.com/sbogacz/wouldyoutatter/dynamostore"
 )
 
 const (
 	tokenTableName = "Tokens"
 )
+
+var _ dynamostore.Item = (*Token)(nil)
 
 // Key returns the Contenders name, and implements the dynamostore Item interface
 func (t Token) Key() string {
@@ -30,15 +33,6 @@ func (t *Token) Unmarshal(aMap map[string]dynamodb.AttributeValue) error {
 	if len(aMap) == 0 {
 		return errors.New(dynamodb.ErrCodeResourceNotFoundException)
 	}
-
-	contender1Wins, err := getInt(aMap["Contender1Wins"])
-	if err != nil {
-		return errors.Wrap(err, "failed to read Contender1Wins attribute")
-	}
-	contender2Wins, err := getInt(aMap["Contender2Wins"])
-	if err != nil {
-		return errors.Wrap(err, "failed to read Contender2Wins attribute")
-	}
 	newToken := &Token{
 		ID:         getString(aMap["ID"]),
 		Contender1: getString(aMap["Contender1"]),
@@ -48,7 +42,30 @@ func (t *Token) Unmarshal(aMap map[string]dynamodb.AttributeValue) error {
 	return nil
 }
 
-// GetItemInput generates the dynamodb.GetItemInput for the given contender
+// CreateTableInput generates the dynamo input to create the token table
+func (t *Token) CreateTableInput() *dynamodb.CreateTableInput {
+	return &dynamodb.CreateTableInput{
+		AttributeDefinitions: []dynamodb.AttributeDefinition{
+			{
+				AttributeName: aws.String("ID"),
+				AttributeType: dynamodb.ScalarAttributeTypeS,
+			},
+		},
+		KeySchema: []dynamodb.KeySchemaElement{
+			{
+				AttributeName: aws.String("ID"),
+				KeyType:       dynamodb.KeyTypeHash,
+			},
+		},
+		ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
+			ReadCapacityUnits:  aws.Int64(5),
+			WriteCapacityUnits: aws.Int64(5),
+		},
+		TableName: aws.String(contenderTableName),
+	}
+}
+
+// GetItemInput generates the dynamodb.GetItemInput for the given token
 func (t *Token) GetItemInput() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
 		TableName: aws.String(tokenTableName),
@@ -58,7 +75,7 @@ func (t *Token) GetItemInput() *dynamodb.GetItemInput {
 	}
 }
 
-// PutItemInput generates the dynamodb.PutItemInput for the given contender
+// PutItemInput generates the dynamodb.PutItemInput for the given token
 func (t *Token) PutItemInput() *dynamodb.PutItemInput {
 	return &dynamodb.PutItemInput{
 		TableName: aws.String(tokenTableName),
@@ -66,7 +83,7 @@ func (t *Token) PutItemInput() *dynamodb.PutItemInput {
 	}
 }
 
-// DeleteItemInput generates the dynamodb.DeleteItemInput for the given contender
+// DeleteItemInput generates the dynamodb.DeleteItemInput for the given token
 func (t *Token) DeleteItemInput() *dynamodb.DeleteItemInput {
 	return &dynamodb.DeleteItemInput{
 		TableName: aws.String(tokenTableName),

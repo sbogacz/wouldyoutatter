@@ -7,11 +7,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/pkg/errors"
+	"github.com/sbogacz/wouldyoutatter/dynamostore"
 )
 
 const (
 	contenderTableName = "contenders"
 )
+
+var _ dynamostore.Item = (*Contender)(nil)
 
 // Key returns the Contenders name, and implements the dynamostore Item interface
 func (c Contender) Key() string {
@@ -59,6 +62,29 @@ func (c *Contender) Unmarshal(aMap map[string]dynamodb.AttributeValue) error {
 	}
 	*c = *newContender
 	return nil
+}
+
+// CreateTableInput generates the dynamo input to create the contenders table
+func (c *Contender) CreateTableInput() *dynamodb.CreateTableInput {
+	return &dynamodb.CreateTableInput{
+		AttributeDefinitions: []dynamodb.AttributeDefinition{
+			{
+				AttributeName: aws.String("Name"),
+				AttributeType: dynamodb.ScalarAttributeTypeS,
+			},
+		},
+		KeySchema: []dynamodb.KeySchemaElement{
+			{
+				AttributeName: aws.String("Name"),
+				KeyType:       dynamodb.KeyTypeHash,
+			},
+		},
+		ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
+			ReadCapacityUnits:  aws.Int64(5),
+			WriteCapacityUnits: aws.Int64(5),
+		},
+		TableName: aws.String(contenderTableName),
+	}
 }
 
 // GetItemInput generates the dynamodb.GetItemInput for the given contender
