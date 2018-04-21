@@ -84,6 +84,13 @@ func (m *Matchup) CreateTableInput() *dynamodb.CreateTableInput {
 	}
 }
 
+// DescribeTableInput generates the query we need to describe the matchups table
+func (m *Matchup) DescribeTableInput() *dynamodb.DescribeTableInput {
+	return &dynamodb.DescribeTableInput{
+		TableName: aws.String(matchupTableName),
+	}
+}
+
 // GetItemInput generates the dynamodb.GetItemInput for the given matchup
 func (m *Matchup) GetItemInput() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{

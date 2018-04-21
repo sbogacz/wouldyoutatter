@@ -63,7 +63,14 @@ func (m *MatchupSet) CreateTableInput() *dynamodb.CreateTableInput {
 			ReadCapacityUnits:  aws.Int64(5),
 			WriteCapacityUnits: aws.Int64(5),
 		},
-		TableName: aws.String(contenderTableName),
+		TableName: aws.String(m.tableName),
+	}
+}
+
+// DescribeTableInput generates the query we need to describe the matchup set tables
+func (m *MatchupSet) DescribeTableInput() *dynamodb.DescribeTableInput {
+	return &dynamodb.DescribeTableInput{
+		TableName: aws.String(m.tableName),
 	}
 }
 

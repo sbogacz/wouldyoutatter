@@ -90,6 +90,13 @@ func (l *LeaderboardEntry) CreateTableInput() *dynamodb.CreateTableInput {
 	}
 }
 
+// DescribeTableInput generates the query we need to describe the leaderboard table
+func (l *LeaderboardEntry) DescribeTableInput() *dynamodb.DescribeTableInput {
+	return &dynamodb.DescribeTableInput{
+		TableName: aws.String(leaderboardTableName),
+	}
+}
+
 // GetItemInput generates the dynamodb.GetItemInput for the given leaderboard entry
 func (l *LeaderboardEntry) GetItemInput() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{

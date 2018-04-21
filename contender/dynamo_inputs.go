@@ -87,6 +87,13 @@ func (c *Contender) CreateTableInput() *dynamodb.CreateTableInput {
 	}
 }
 
+// DescribeTableInput generates the query we need to describe the contender table
+func (c *Contender) DescribeTableInput() *dynamodb.DescribeTableInput {
+	return &dynamodb.DescribeTableInput{
+		TableName: aws.String(contenderTableName),
+	}
+}
+
 // GetItemInput generates the dynamodb.GetItemInput for the given contender
 func (c *Contender) GetItemInput() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{

@@ -79,8 +79,8 @@ func (s *Service) Start() {
 
 	h := &http.Server{
 		Addr:         fmt.Sprintf(":%d", s.config.Port),
-		ReadTimeout:  time.Second,
-		WriteTimeout: time.Second,
+		ReadTimeout:  3 * time.Second,
+		WriteTimeout: 3 * time.Second,
 		Handler:      s.router,
 	}
 

@@ -15,6 +15,7 @@ type Item interface {
 	UpdateItemInput() *dynamodb.UpdateItemInput
 	DeleteItemInput() *dynamodb.DeleteItemInput
 	CreateTableInput() *dynamodb.CreateTableInput
+	DescribeTableInput() *dynamodb.DescribeTableInput
 	Unmarshal(map[string]dynamodb.AttributeValue) error
 }
 

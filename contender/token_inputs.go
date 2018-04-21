@@ -61,7 +61,14 @@ func (t *Token) CreateTableInput() *dynamodb.CreateTableInput {
 			ReadCapacityUnits:  aws.Int64(5),
 			WriteCapacityUnits: aws.Int64(5),
 		},
-		TableName: aws.String(contenderTableName),
+		TableName: aws.String(tokenTableName),
+	}
+}
+
+// DescribeTableInput generates the query we need to describe the token table
+func (t *Token) DescribeTableInput() *dynamodb.DescribeTableInput {
+	return &dynamodb.DescribeTableInput{
+		TableName: aws.String(tokenTableName),
 	}
 }
 
