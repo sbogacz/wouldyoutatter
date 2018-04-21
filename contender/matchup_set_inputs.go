@@ -118,3 +118,31 @@ func (m *MatchupSet) UpdateItemInput() *dynamodb.UpdateItemInput {
 		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{"c": {SS: []string{m.entry.String()}}},
 	}
 }
+
+// Contenders is a collection that implements Scannable
+type Contenders []Contender
+
+// ScanInput producest a dynamodb ScanInput object
+func (c *Contenders) ScanInput() *dynamodb.ScanInput {
+	return &dynamodb.ScanInput{
+		TableName: aws.String(contenderTableName),
+	}
+}
+
+// Unmarshal allows results to be unmarshalled directly into the struct
+func (c *Contenders) Unmarshal(maps []map[string]dynamodb.AttributeValue) error {
+	cs := make([]*Contender, len(maps))
+	for i := range cs {
+		cs[i] = &Contender{}
+		if err := cs[i].Unmarshal(maps[i]); err != nil {
+			return errors.Wrap(err, "failed to unmarshal Contenders")
+		}
+	}
+	contenders := make([]Contender, len(cs))
+	for i := range cs {
+		contenders[i] = *cs[i]
+	}
+	*c = contenders
+	return nil
+
+}

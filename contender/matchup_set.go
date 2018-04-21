@@ -109,20 +109,28 @@ func NewMasterMatchupSetStore(db dynamostore.Storer) *MasterMatchupSetStore {
 
 // AddToMatchupSet given a uid corresponding to the session, and two contenders, adds them to the set
 // of matchups that uid has seen
-func (s *MasterMatchupSetStore) AddToMatchupSet(ctx context.Context, contender1, contender2 string) error {
-	contender1, contender2 = OrderMatchup(contender1, contender2)
-	newMatchupEntry := matchupSetEntry{
-		Contender1: contender1,
-		Contender2: contender2,
+func (s *MasterMatchupSetStore) AddToMatchupSet(ctx context.Context, contender1 string) error {
+	otherContenders := &Contenders{}
+	if err := s.db.Scan(ctx, otherContenders); err != nil {
+		return errors.Wrap(err, "failed to retrieve other contenders to populate Matchup Set")
 	}
 
-	matchupSet := &MatchupSet{
-		ID:        masterKey,
-		entry:     newMatchupEntry,
-		tableName: masterMatchupTableName,
-	}
-	if err := s.db.Update(ctx, matchupSet); err != nil {
-		return errors.Wrapf(err, "failed to update the matchup set for ID: %s", masterKey)
+	for _, contender2 := range otherContenders {
+		c1, c2 := OrderMatchup(contender1, contender2)
+		newMatchupEntry := matchupSetEntry{
+			Contender1: c1,
+			Contender2: c2,
+		}
+
+		matchupSet := &MatchupSet{
+			ID:        masterKey,
+			entry:     newMatchupEntry,
+			tableName: masterMatchupTableName,
+		}
+		if err := s.db.Update(ctx, matchupSet); err != nil {
+			return errors.Wrapf(err, "failed to update the matchup set for ID: %s", masterKey)
+		}
+
 	}
 	return nil
 }
