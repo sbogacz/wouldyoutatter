@@ -74,8 +74,10 @@
 [[projects]]
   name = "github.com/satori/go.uuid"
   packages = ["."]
-  revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
-  version = "v1.2.0"
+  branch = "master"
+  revision = "36e9d2ebbde5e3f13ab2e25625fd453271d6522e"
+  #revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
+  #version = "v1.2.0"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
