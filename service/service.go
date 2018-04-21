@@ -17,11 +17,16 @@ import (
 // Service holds the necessary clients to run the wouldyoutatter
 // service
 type Service struct {
-	config         Config
-	contenderStore *contender.Store
-	matchupStore   *contender.MatchupStore
-	router         *chi.Mux
-	cancel         chan struct{}
+	config           Config
+	contenderStore   *contender.Store
+	matchupStore     *contender.MatchupStore
+	leaderboard      *contender.LeaderboardStore
+	userMatchupSet   *contender.MatchupSetStore
+	masterMatchupSet *contender.MasterMatchupSetStore
+	tokenStore       *contender.TokenStore
+
+	router *chi.Mux
+	cancel chan struct{}
 }
 
 // New tries to cerate a new instance of Service
@@ -40,13 +45,16 @@ func New(c Config) (*Service, error) {
 	// set log level
 	log.SetLevel(c.logLevelToLogrus())
 
-	fmt.Printf("log level at: %s", log.GetLevel().String())
 	return &Service{
-		config:         c,
-		contenderStore: contender.NewStore(storer),
-		matchupStore:   contender.NewMatchupStore(storer),
-		router:         chi.NewRouter(),
-		cancel:         make(chan struct{}),
+		config:           c,
+		contenderStore:   contender.NewStore(storer),
+		matchupStore:     contender.NewMatchupStore(storer),
+		leaderboard:      contender.NewLeaderboardStore(storer),
+		userMatchupSet:   contender.NewMatchupSetStore(storer),
+		masterMatchupSet: contender.NewMasterMatchupSetStore(storer),
+		tokenStore:       contender.NewTokenStore(storer),
+		router:           chi.NewRouter(),
+		cancel:           make(chan struct{}),
 	}, nil
 }
 
@@ -54,10 +62,10 @@ func New(c Config) (*Service, error) {
 func (s *Service) Start() {
 	// route the contenders endpoints
 	s.router.Route("/contenders", func(r chi.Router) {
-		r.Post("/", s.createContender)
+		r.With(s.checkMasterKey).Post("/", s.createContender)
 		r.Route("/{contenderID}", func(r chi.Router) {
 			r.Get("/", s.getContender)
-			r.Delete("/", s.deleteContender)
+			r.With(s.checkMasterKey).Delete("/", s.deleteContender)
 		})
 	})
 	// route the matchups endpoints

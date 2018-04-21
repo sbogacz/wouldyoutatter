@@ -43,12 +43,11 @@ func (s *Service) getContender(w http.ResponseWriter, req *http.Request) {
 
 			w.WriteHeader(http.StatusNotFound)
 			w.Write([]byte(fmt.Sprintf("no contender found with id: %s", contenderID)))
-			log.Infof("no contender found with name: %s", contenderID)
+			log.WithError(err).Infof("no contender found with name: %s", contenderID)
 			return
 		}
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("failed to retrieve contender"))
-		fmt.Printf("WAT %v\n", err)
 		log.Errorf("failed to retrieve contender: %v", err)
 		return
 	}

@@ -20,6 +20,14 @@ type TokenStore struct {
 	db dynamostore.Storer
 }
 
+// NewTokenStore takes a Storer and returns a reference to an instance
+// of a token store
+func NewTokenStore(db dynamostore.Storer) *TokenStore {
+	return &TokenStore{
+		db: db,
+	}
+}
+
 // CreateToken creates a new token for the given contender combination vote
 func (s *TokenStore) CreateToken(ctx context.Context, contender1, contender2 string) (*Token, error) {
 	uid, err := uuid.NewV4()

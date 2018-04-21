@@ -7,6 +7,15 @@ import (
 	"github.com/urfave/cli"
 )
 
+const (
+	// DefaultPort for the service
+	DefaultPort = 8080
+	// DefaultMasterKey for the service
+	DefaultMasterKey = "th3M0stm3tAlTh1ng1Hav3ev3rh3ard"
+	// DefaultLogLevel for the service
+	DefaultLogLevel = "INFO"
+)
+
 var (
 	awsConfig *aws.Config
 )
@@ -18,6 +27,7 @@ type Config struct {
 	AWSAccessKeyID string
 	AWSSecretKey   string
 	AWSRegion      string
+	MasterKey      string
 	LogLevel       string
 }
 
@@ -29,7 +39,7 @@ func (c *Config) Flags() []cli.Flag {
 			Name:        "port, p",
 			Usage:       "the port you'd like to run the service on",
 			Destination: &c.Port,
-			Value:       8080,
+			Value:       DefaultPort,
 		},
 		cli.StringFlag{
 			Name:        "aws-access-key-id",
@@ -50,11 +60,18 @@ func (c *Config) Flags() []cli.Flag {
 			Destination: &c.AWSRegion,
 		},
 		cli.StringFlag{
+			Name:        "master-key",
+			EnvVar:      "MASTER_KEY",
+			Usage:       "the master key that will be required in the header for Creates and Deletes on contenders",
+			Destination: &c.MasterKey,
+			Value:       DefaultMasterKey,
+		},
+		cli.StringFlag{
 			Name:        "log-level",
 			EnvVar:      "LOG_LEVEL",
 			Usage:       "the log level that wouldyoutatter should log to stdout at, defaults to INFO",
 			Destination: &c.LogLevel,
-			Value:       "INFO",
+			Value:       DefaultLogLevel,
 		},
 	}
 }

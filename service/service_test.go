@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -34,7 +35,15 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("failed to get free port for tests: %v", err)
 	}
-	config := service.Config{Port: openPort}
+	config := service.Config{
+		Port:      openPort,
+		LogLevel:  "INFO",
+		MasterKey: service.DefaultMasterKey,
+	}
+
+	if *runAgainstLocalDynamo {
+		config.AWSRegion = "local"
+	}
 
 	if err := setupService(config); err != nil {
 		log.Fatalf("failed to setup for tests: %v", err)
@@ -67,14 +76,28 @@ func TestSimpleContenderCRUD(t *testing.T) {
 		b, err := json.Marshal(&origContender)
 		require.NoError(t, err)
 
-		resp, err := http.DefaultClient.Post(contenderAddress, "application/json", bytes.NewBuffer(b))
+		// first go should fail since it's unauthorized
+		req, err := http.NewRequest("POST", contenderAddress, bytes.NewBuffer(b))
+		require.NoError(t, err)
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+
+		// if we add the master key header it should succeed
+		req, err = http.NewRequest("POST", contenderAddress, bytes.NewBuffer(b))
+		require.NoError(t, err)
+		req.Header.Set("X-Tatter-Master", service.DefaultMasterKey)
+		resp, err = http.DefaultClient.Do(req)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusCreated, resp.StatusCode)
+
 	})
 	t.Run("get contender", func(t *testing.T) {
+		time.Sleep(time.Millisecond * 500)
 		resp, err := http.DefaultClient.Get(fmt.Sprintf("%s/%s", contenderAddress, origContender.Name))
 		require.NoError(t, err)
-		assert.Equal(t, http.StatusOK, resp.StatusCode)
+		require.Equal(t, http.StatusOK, resp.StatusCode)
 
 		require.NotNil(t, resp.Body)
 		d := json.NewDecoder(resp.Body)
@@ -88,10 +111,21 @@ func TestSimpleContenderCRUD(t *testing.T) {
 		req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/%s", contenderAddress, origContender.Name), nil)
 		require.NoError(t, err)
 
+		// should fail first time, unauthorized
 		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+
+		// try again with right header
+		req, err = http.NewRequest("DELETE", fmt.Sprintf("%s/%s", contenderAddress, origContender.Name), nil)
+		require.NoError(t, err)
+		req.Header.Set("X-Tatter-Master", service.DefaultMasterKey)
+
+		resp, err = http.DefaultClient.Do(req)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusNoContent, resp.StatusCode)
 
+		// try a get again and make sure we 404
 		resp, err = http.DefaultClient.Get(fmt.Sprintf("%s/%s", contenderAddress, origContender.Name))
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)

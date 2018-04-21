@@ -86,7 +86,7 @@ func (s *dynamoStore) Delete(ctx context.Context, item Item) error {
 }
 
 func (s *dynamoStore) createTableOnError(ctx context.Context, item Item, err error) error {
-	if err.Error() != dynamodb.ErrCodeResourceNotFoundException {
+	if !TableNotFoundError(err) {
 		return err
 	}
 
