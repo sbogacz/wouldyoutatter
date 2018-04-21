@@ -9,6 +9,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type retryKey string
+
+const (
+	rKey       retryKey = "retries"
+	maxRetries          = 2
+)
+
 type dynamoStore struct {
 	dynamo *dynamodb.DynamoDB
 	lock   *sync.RWMutex
@@ -25,6 +32,15 @@ func New(d *dynamodb.DynamoDB) Storer {
 
 // Set takes a Item and tries to save it to Dynamo
 func (s *dynamoStore) Set(ctx context.Context, item Item) error {
+	var (
+		numRetries int
+		ok         bool
+	)
+	if numRetries, ok = ctx.Value(rKey).(int); !ok {
+		numRetries = 0
+	}
+	ctx = context.WithValue(ctx, rKey, numRetries+1)
+
 	if item.Key() == "" {
 		return errors.New("must provide a non-empty name")
 	}
@@ -35,13 +51,15 @@ func (s *dynamoStore) Set(ctx context.Context, item Item) error {
 
 	if _, err := req.Send(); err != nil {
 		s.lock.RUnlock()
-		if createTableErr := s.createTableOnError(ctx, item, err); err != nil {
+		if createTableErr := s.createTableOnError(ctx, item, err); createTableErr != nil {
+			log.WithField("num_retries", numRetries).WithError(err).Error("failed to set item")
 			return errors.Wrapf(createTableErr, "failed to write Item %s to the database", item.Key())
 		}
 		// retry after creating table
 		return s.Set(ctx, item)
 	}
 	s.lock.RUnlock()
+	log.WithField("key", item.Key()).Debugf("successfully set item")
 
 	return nil
 }
@@ -66,6 +84,14 @@ func (s *dynamoStore) Get(ctx context.Context, item Item) (Item, error) {
 
 // Update takes a Item and tries to update it in Dynamo
 func (s *dynamoStore) Update(ctx context.Context, item Item) error {
+	var (
+		numRetries int
+		ok         bool
+	)
+	if numRetries, ok = ctx.Value(rKey).(int); !ok {
+		numRetries = 0
+	}
+	ctx = context.WithValue(ctx, rKey, numRetries+1)
 	if item.Key() == "" {
 		return errors.New("must provide a non-empty name")
 	}
@@ -76,7 +102,7 @@ func (s *dynamoStore) Update(ctx context.Context, item Item) error {
 
 	if _, err := req.Send(); err != nil {
 		s.lock.RUnlock()
-		if createTableErr := s.createTableOnError(ctx, item, err); err != nil {
+		if createTableErr := s.createTableOnError(ctx, item, err); createTableErr != nil {
 			return errors.Wrap(createTableErr, "failed to send Update request")
 		}
 		// retry after creating table
@@ -105,6 +131,7 @@ func (s *dynamoStore) Delete(ctx context.Context, item Item) error {
 
 func (s *dynamoStore) createTableOnError(ctx context.Context, item Item, err error) error {
 	if !TableNotFoundError(err) {
+		log.WithError(err).Errorf("argh")
 		return err
 	}
 	s.lock.Lock()
@@ -116,13 +143,13 @@ func (s *dynamoStore) createTableOnError(ctx context.Context, item Item, err err
 		log.WithError(err).Errorf("failed to create table for %s", item.Key())
 	}
 
-	log.Info("going to wait")
+	log.Debug("going to wait")
 	describeInput := item.DescribeTableInput()
 	if err := s.dynamo.WaitUntilTableExistsWithContext(ctx, describeInput); err != nil {
 		log.WithError(err).Errorf("table for %s was not created in time", item.Key())
 		return errors.Wrap(err, "table was not created in time")
 	}
-	log.Info("done waiting")
+	log.Debug("done waiting")
 
 	return nil
 }
