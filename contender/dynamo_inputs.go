@@ -37,6 +37,7 @@ func (c Contender) Marshal() map[string]dynamodb.AttributeValue {
 // Unmarshal tries to decode a Contender from a dynamo response
 func (c *Contender) Unmarshal(aMap map[string]dynamodb.AttributeValue) error {
 	if len(aMap) == 0 {
+		fmt.Println("POOP")
 		return errors.New(dynamodb.ErrCodeResourceNotFoundException)
 	}
 
@@ -90,8 +91,10 @@ func (c *Contender) CreateTableInput() *dynamodb.CreateTableInput {
 // GetItemInput generates the dynamodb.GetItemInput for the given contender
 func (c *Contender) GetItemInput() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
-		TableName: aws.String(contenderTableName),
-		Key:       map[string]dynamodb.AttributeValue{"Name": {S: aws.String(c.Name)}},
+		TableName:      aws.String(contenderTableName),
+		Key:            map[string]dynamodb.AttributeValue{"Name": {S: aws.String(c.Name)}},
+		ConsistentRead: aws.Bool(true),
+		//ProjectionExpression: aws.String("Description, SVG, Wins, Losses, Score"),
 	}
 }
 

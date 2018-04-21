@@ -94,7 +94,7 @@ func TestSimpleContenderCRUD(t *testing.T) {
 
 	})
 	t.Run("get contender", func(t *testing.T) {
-		time.Sleep(time.Millisecond * 500)
+		time.Sleep(time.Second * 10)
 		resp, err := http.DefaultClient.Get(fmt.Sprintf("%s/%s", contenderAddress, origContender.Name))
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
