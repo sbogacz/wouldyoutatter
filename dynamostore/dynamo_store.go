@@ -21,6 +21,8 @@ type dynamoStore struct {
 	lock   *sync.RWMutex
 }
 
+var _ Storer = (*dynamoStore)(nil)
+
 // New takes a reference to a DynamoDB instance
 // and returns the dynamo-backed version of the store
 func New(d *dynamodb.DynamoDB) Storer {
@@ -127,6 +129,21 @@ func (s *dynamoStore) Delete(ctx context.Context, item Item) error {
 		return errors.Wrap(err, "failed to send Delete request")
 	}
 	return nil
+}
+
+// Scan takes a scannable and tries to scan against DynamoDB
+func (s *dynamoStore) Scan(ctx context.Context, items Scannable) error {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	input := items.ScanInput()
+	req := s.dynamo.ScanRequest(input)
+	output, err := req.Send()
+	if err != nil {
+		return errors.Wrap(err, "failed to send Scan request")
+	}
+
+	return items.Unmarshal(output.Items)
 }
 
 func (s *dynamoStore) createTableOnError(ctx context.Context, item Item, err error) error {

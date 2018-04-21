@@ -11,6 +11,7 @@ import (
 const (
 	userMatchupSetTableName = "UserMatchups"
 	masterMatchupTableName  = "PossibleMatchups"
+	masterKey               = "Master"
 )
 
 // MatchupSet is one of the possible matchup combinations
@@ -108,7 +109,7 @@ func NewMasterMatchupSetStore(db dynamostore.Storer) *MasterMatchupSetStore {
 
 // AddToMatchupSet given a uid corresponding to the session, and two contenders, adds them to the set
 // of matchups that uid has seen
-func (s *MasterMatchupSetStore) AddToMatchupSet(ctx context.Context, uid, contender1, contender2 string) error {
+func (s *MasterMatchupSetStore) AddToMatchupSet(ctx context.Context, contender1, contender2 string) error {
 	contender1, contender2 = OrderMatchup(contender1, contender2)
 	newMatchupEntry := matchupSetEntry{
 		Contender1: contender1,
@@ -116,12 +117,12 @@ func (s *MasterMatchupSetStore) AddToMatchupSet(ctx context.Context, uid, conten
 	}
 
 	matchupSet := &MatchupSet{
-		ID:        uid,
+		ID:        masterKey,
 		entry:     newMatchupEntry,
 		tableName: masterMatchupTableName,
 	}
 	if err := s.db.Update(ctx, matchupSet); err != nil {
-		return errors.Wrapf(err, "failed to update the matchup set for ID: %s", uid)
+		return errors.Wrapf(err, "failed to update the matchup set for ID: %s", masterKey)
 	}
 	return nil
 }

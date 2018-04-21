@@ -16,7 +16,13 @@ type Item interface {
 	DeleteItemInput() *dynamodb.DeleteItemInput
 	CreateTableInput() *dynamodb.CreateTableInput
 	DescribeTableInput() *dynamodb.DescribeTableInput
+	Marshal() map[string]dynamodb.AttributeValue
 	Unmarshal(map[string]dynamodb.AttributeValue) error
+}
+
+type Scannable interface {
+	ScanInput() *dynamodb.ScanInput
+	Unmarshal([]map[string]dynamodb.AttributeValue) error
 }
 
 // Storer is the interface to the K/V retrieval of Contenders
@@ -25,4 +31,5 @@ type Storer interface {
 	Get(context.Context, Item) (Item, error)
 	Update(context.Context, Item) error
 	Delete(context.Context, Item) error
+	Scan(context.Context, Scannable) error
 }
