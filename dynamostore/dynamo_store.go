@@ -4,7 +4,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -172,14 +171,8 @@ func (s *dynamoStore) createTableOnError(ctx context.Context, item Item, err err
 	log.Debug("done waiting")
 
 	// enable TTL is so configured
-	if s.c.TTLEnabled {
-		updateInput := &dynamodb.UpdateTimeToLiveInput{
-			TableName: aws.String(s.c.TableName),
-			TimeToLiveSpecification: &dynamodb.TimeToLiveSpecification{
-				AttributeName: aws.String(s.c.TTLAttributeName),
-				Enabled:       aws.Bool(true),
-			},
-		}
+	updateInput := item.UpdateTimeToLiveInput(s.c.TableName)
+	if updateInput != nil {
 		enableTTLReq := s.dynamo.UpdateTimeToLiveRequest(updateInput)
 		if _, err := enableTTLReq.Send(); err != nil {
 			log.WithError(err).Errorf("failed to enable TTL on %s", s.c.TableName)

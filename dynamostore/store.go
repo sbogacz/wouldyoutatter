@@ -16,10 +16,12 @@ type Item interface {
 	DeleteItemInput() *dynamodb.DeleteItemInput
 	CreateTableInput(c *TableConfig) *dynamodb.CreateTableInput
 	DescribeTableInput() *dynamodb.DescribeTableInput
+	UpdateTimeToLiveInput(string) *dynamodb.UpdateTimeToLiveInput
 	Marshal() map[string]dynamodb.AttributeValue
 	Unmarshal(map[string]dynamodb.AttributeValue) error
 }
 
+// Scannable is an interface for items whose tables can be scanned
 type Scannable interface {
 	ScanInput() *dynamodb.ScanInput
 	Unmarshal([]map[string]dynamodb.AttributeValue) error

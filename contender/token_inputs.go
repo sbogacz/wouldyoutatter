@@ -72,6 +72,17 @@ func (t *Token) DescribeTableInput() *dynamodb.DescribeTableInput {
 	}
 }
 
+// UpdateTimeToLiveInput generates the input in order to set TTL on the token table
+func (t *Token) UpdateTimeToLiveInput(tableName string) *dynamodb.UpdateTimeToLiveInput {
+	return &dynamodb.UpdateTimeToLiveInput{
+		TableName: aws.String(tableName),
+		TimeToLiveSpecification: &dynamodb.TimeToLiveSpecification{
+			AttributeName: aws.String(s.c.TTLAttributeName),
+			Enabled:       aws.Bool(true),
+		},
+	}
+}
+
 // GetItemInput generates the dynamodb.GetItemInput for the given token
 func (t *Token) GetItemInput() *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{

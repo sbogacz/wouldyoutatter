@@ -10,11 +10,9 @@ import (
 // TableConfig allows us to set configuration details
 // for the dynamo table from the app
 type TableConfig struct {
-	TableName        string
-	ReadCapacity     int
-	WriteCapacity    int
-	TTLEnabled       bool
-	TTLAttributeName string
+	TableName     string
+	ReadCapacity  int
+	WriteCapacity int
 }
 
 // Flags returns a slice of the configuration options for the contender table
@@ -38,16 +36,6 @@ func (c *TableConfig) Flags(prefix, defaultTableName string) []cli.Flag {
 			EnvVar:      envVarName(prefix, "TABLE_WRITE_CAPACITY"),
 			Value:       5,
 			Destination: &c.WriteCapacity,
-		},
-		cli.BoolFlag{
-			Name:        cliFlagName(prefix, "table-ttl-enabled"),
-			EnvVar:      envVarName(prefix, "TABLE_TTL_ENABLED"),
-			Destination: &c.TTLEnabled,
-		},
-		cli.StringFlag{
-			Name:        cliFlagName(prefix, "table-ttl-attribute-name"),
-			EnvVar:      envVarName(prefix, "TABLE_TTL_ATTRIBUTE_NAME"),
-			Destination: &c.TTLAttributeName,
 		},
 	}
 }
