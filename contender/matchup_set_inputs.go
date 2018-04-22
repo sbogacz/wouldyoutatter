@@ -20,7 +20,7 @@ func (m MatchupSet) Key() string {
 func (m MatchupSet) Marshal() map[string]dynamodb.AttributeValue {
 	return map[string]dynamodb.AttributeValue{
 		"ID": stringToAttributeValue(m.ID),
-		"Set": {
+		"MatchupSet": {
 			SS: m.Set,
 		},
 	}
@@ -29,12 +29,12 @@ func (m MatchupSet) Marshal() map[string]dynamodb.AttributeValue {
 // Unmarshal tries to decode a Contender from a dynamo response
 func (m *MatchupSet) Unmarshal(aMap map[string]dynamodb.AttributeValue) error {
 	set := []string{}
-	setAttribute, ok := aMap["Set"]
+	setAttribute, ok := aMap["MatchupSet"]
 	if !ok {
-		return errors.New("no Set found")
+		return errors.New("no MatchupSet found")
 	}
 	if err := dynamodbattribute.Unmarshal(&setAttribute, &set); err != nil {
-		return errors.Wrap(err, "failed to unmarshal Set")
+		return errors.Wrap(err, "failed to unmarshal MatchupSet")
 	}
 	newMatchupSet := &MatchupSet{
 		ID:  getString(aMap["ID"]),
@@ -104,9 +104,9 @@ func (m *MatchupSet) DeleteItemInput() *dynamodb.DeleteItemInput {
 
 // UpdateItemInput is a no-op, since we don't update the matchupSet
 func (m *MatchupSet) UpdateItemInput() *dynamodb.UpdateItemInput {
-	updateExpression := "ADD Set :c"
+	updateExpression := "ADD MatchupSet :c"
 	if m.entry.remove {
-		updateExpression = "DELETE Set :c"
+		updateExpression = "DELETE MatchupSet :c"
 	}
 	return &dynamodb.UpdateItemInput{
 		TableName: aws.String(m.tableName),
@@ -115,7 +115,7 @@ func (m *MatchupSet) UpdateItemInput() *dynamodb.UpdateItemInput {
 			"ID": {S: aws.String(m.ID)},
 		},
 		UpdateExpression:          aws.String(updateExpression),
-		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{"c": {SS: []string{m.entry.String()}}},
+		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{":c": {SS: []string{m.entry.Contender1, m.entry.Contender2}}},
 	}
 }
 

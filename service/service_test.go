@@ -146,14 +146,22 @@ func teardownTables(config service.Config) error {
 		return err
 	}
 	svc := dynamodb.New(cfg)
-	input := &dynamodb.DeleteTableInput{
-		TableName: aws.String("Contenders"),
+
+	tables := []string{
+		"Contenders",
+		"PossibleMatchups",
 	}
 
-	req := svc.DeleteTableRequest(input)
-	_, err = req.Send()
-	if err != nil {
-		return err
+	for _, table := range tables {
+		input := &dynamodb.DeleteTableInput{
+			TableName: aws.String(table),
+		}
+		log.WithField("tablename", table).Info("deleting table after tests")
+		req := svc.DeleteTableRequest(input)
+		_, err = req.Send()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

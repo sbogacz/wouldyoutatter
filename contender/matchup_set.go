@@ -107,16 +107,21 @@ func NewMasterMatchupSetStore(db dynamostore.Storer) *MasterMatchupSetStore {
 	}
 }
 
-// AddToMatchupSet given a uid corresponding to the session, and two contenders, adds them to the set
+// Add given a uid corresponding to the session, and two contenders, adds them to the set
 // of matchups that uid has seen
-func (s *MasterMatchupSetStore) AddToMatchupSet(ctx context.Context, contender1 string) error {
-	otherContenders := &Contenders{}
-	if err := s.db.Scan(ctx, otherContenders); err != nil {
+func (s *MasterMatchupSetStore) Add(ctx context.Context, contender1 string) error {
+	cs := []Contender{}
+	otherContenders := Contenders(cs)
+	if err := s.db.Scan(ctx, &otherContenders); err != nil {
 		return errors.Wrap(err, "failed to retrieve other contenders to populate Matchup Set")
 	}
 
 	for _, contender2 := range otherContenders {
-		c1, c2 := OrderMatchup(contender1, contender2)
+		// don't create dupes
+		if contender1 == contender2.Name {
+			continue
+		}
+		c1, c2 := OrderMatchup(contender1, contender2.Name)
 		newMatchupEntry := matchupSetEntry{
 			Contender1: c1,
 			Contender2: c2,
@@ -135,23 +140,36 @@ func (s *MasterMatchupSetStore) AddToMatchupSet(ctx context.Context, contender1 
 	return nil
 }
 
-// RemoveFromMatchupSet given a uid corresponding to the session, and two contenders, adds them to the set
+// Remove given a uid corresponding to the session, and two contenders, adds them to the set
 // of matchups that uid has seen
-func (s *MasterMatchupSetStore) RemoveFromMatchupSet(ctx context.Context, uid, contender1, contender2 string) error {
-	contender1, contender2 = OrderMatchup(contender1, contender2)
-	newMatchupEntry := matchupSetEntry{
-		Contender1: contender1,
-		Contender2: contender2,
-		remove:     true,
+func (s *MasterMatchupSetStore) Remove(ctx context.Context, contender1 string) error {
+	cs := []Contender{}
+	otherContenders := Contenders(cs)
+	if err := s.db.Scan(ctx, &otherContenders); err != nil {
+		return errors.Wrap(err, "failed to retrieve other contenders to populate Matchup Set")
 	}
 
-	matchupSet := &MatchupSet{
-		ID:        uid,
-		entry:     newMatchupEntry,
-		tableName: masterMatchupTableName,
-	}
-	if err := s.db.Update(ctx, matchupSet); err != nil {
-		return errors.Wrapf(err, "failed to update the matchup set for ID: %s", uid)
+	for _, contender2 := range otherContenders {
+		// didn't create dupes
+		if contender1 == contender2.Name {
+			continue
+		}
+		c1, c2 := OrderMatchup(contender1, contender2.Name)
+		newMatchupEntry := matchupSetEntry{
+			Contender1: c1,
+			Contender2: c2,
+			remove:     true,
+		}
+
+		matchupSet := &MatchupSet{
+			ID:        masterKey,
+			entry:     newMatchupEntry,
+			tableName: masterMatchupTableName,
+		}
+		if err := s.db.Update(ctx, matchupSet); err != nil {
+			return errors.Wrapf(err, "failed to update the matchup set for ID: %s", masterKey)
+		}
+
 	}
 	return nil
 }

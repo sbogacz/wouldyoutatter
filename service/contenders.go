@@ -24,10 +24,17 @@ func (s *Service) createContender(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// save contender
 	if err := s.contenderStore.Set(context.Background(), c); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("failed to store contender"))
-		log.Errorf("failed to store contender: %v", err)
+		http.Error(w, "failed to store contender", http.StatusInternalServerError)
+		log.WithError(err).Error("failed to store contender")
+		return
+	}
+
+	// add to master matchup set
+	if err := s.masterMatchupSet.Add(context.TODO(), c.Name); err != nil {
+		http.Error(w, "failed to update master matchup set", http.StatusInternalServerError)
+		log.WithError(err).Error("failed to update master matchup set")
 		return
 	}
 
