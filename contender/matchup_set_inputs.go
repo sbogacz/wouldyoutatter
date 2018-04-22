@@ -3,7 +3,6 @@ package contender
 import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb/dynamodbattribute"
 	"github.com/pkg/errors"
 	"github.com/sbogacz/wouldyoutatter/dynamostore"
 )
@@ -18,24 +17,34 @@ func (m MatchupSet) Key() string {
 // Marshal encodes the values of a contender into the map format
 // that dynamo expects
 func (m MatchupSet) Marshal() map[string]dynamodb.AttributeValue {
+	set := make([]dynamodb.AttributeValue, 0, len(m.Set))
+	for _, entry := range m.Set {
+		set = append(set, dynamodb.AttributeValue{
+			SS: []string{entry.Contender1, entry.Contender2},
+		})
+	}
 	return map[string]dynamodb.AttributeValue{
 		"ID": stringToAttributeValue(m.ID),
 		"MatchupSet": {
-			SS: m.Set,
+			L: set,
 		},
 	}
 }
 
 // Unmarshal tries to decode a Contender from a dynamo response
 func (m *MatchupSet) Unmarshal(aMap map[string]dynamodb.AttributeValue) error {
-	set := []string{}
 	setAttribute, ok := aMap["MatchupSet"]
 	if !ok {
 		return errors.New("no MatchupSet found")
 	}
-	if err := dynamodbattribute.Unmarshal(&setAttribute, &set); err != nil {
-		return errors.Wrap(err, "failed to unmarshal MatchupSet")
+	set := make([]MatchupSetEntry, 0, len(setAttribute.L))
+	for _, entry := range setAttribute.L {
+		if len(entry.SS) != 2 {
+			continue
+		}
+		set = append(set, newMatchupSetEntry(entry.SS[0], entry.SS[1]))
 	}
+
 	newMatchupSet := &MatchupSet{
 		ID:  getString(aMap["ID"]),
 		Set: set,

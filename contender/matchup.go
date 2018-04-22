@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/sbogacz/wouldyoutatter/dynamostore"
+	"github.com/urfave/cli"
 )
 
 // Matchup is the model for the head-to-head records
@@ -77,5 +78,37 @@ func newScoredMatchup(winner, loser string) *Matchup {
 		Contender1:    contender1,
 		Contender2:    contender2,
 		contender1Won: contender1 == winner,
+	}
+}
+
+// MatchupTableConfig allows us to set configuration details
+// for the dynamo table from the app
+type MatchupTableConfig struct {
+	TableName     string
+	ReadCapacity  int
+	WriteCapacity int
+}
+
+// Flags returns a slice of the configuration options for the matchup table
+func (c *MatchupTableConfig) Flags() []cli.Flag {
+	return []cli.Flag{
+		cli.StringFlag{
+			Name:        "matchup-table-name",
+			EnvVar:      "MATCHUP_TABLE_NAME",
+			Value:       "Matchups",
+			Destination: &c.TableName,
+		},
+		cli.IntFlag{
+			Name:        "matchup-table-read-capacity",
+			EnvVar:      "MATCHUP_TABLE_READ_CAPACITY",
+			Value:       5,
+			Destination: &c.ReadCapacity,
+		},
+		cli.IntFlag{
+			Name:        "matchup-table-write-capacity",
+			EnvVar:      "MATCHUP_TABLE_WRITE_CAPACITY",
+			Value:       5,
+			Destination: &c.WriteCapacity,
+		},
 	}
 }

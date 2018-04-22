@@ -10,10 +10,6 @@ import (
 	"github.com/sbogacz/wouldyoutatter/dynamostore"
 )
 
-const (
-	contenderTableName = "Contenders"
-)
-
 var _ dynamostore.Item = (*Contender)(nil)
 
 // Key returns the Contenders name, and implements the dynamostore Item interface
@@ -65,7 +61,7 @@ func (c *Contender) Unmarshal(aMap map[string]dynamodb.AttributeValue) error {
 }
 
 // CreateTableInput generates the dynamo input to create the contenders table
-func (c *Contender) CreateTableInput() *dynamodb.CreateTableInput {
+func (c *Contender) CreateTableInput(tc dynamostore.TableConfig) *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
 		AttributeDefinitions: []dynamodb.AttributeDefinition{
 			{
@@ -80,10 +76,10 @@ func (c *Contender) CreateTableInput() *dynamodb.CreateTableInput {
 			},
 		},
 		ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
-			ReadCapacityUnits:  aws.Int64(5),
-			WriteCapacityUnits: aws.Int64(5),
+			ReadCapacityUnits:  aws.Int64(tc.ReadCapacity),
+			WriteCapacityUnits: aws.Int64(tc.WriteCapacity),
 		},
-		TableName: aws.String(contenderTableName),
+		TableName: aws.String(tc.TableName),
 	}
 }
 

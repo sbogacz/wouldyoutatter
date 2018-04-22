@@ -5,6 +5,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/sbogacz/wouldyoutatter/dynamostore"
+	"github.com/urfave/cli"
 )
 
 // LeaderboardEntry is the model for the head-to-head records
@@ -67,4 +68,36 @@ func (s *LeaderboardStore) UpdateLosingEntry(ctx context.Context, name string) e
 	loser := NewLoser(name)
 
 	return errors.Wrapf(s.db.Update(ctx, loser), "failed to declare leaderboard %s the loser", name)
+}
+
+// LeaderboardTableConfig allows us to set configuration details
+// for the dynamo table from the app
+type LeaderboardTableConfig struct {
+	TableName     string
+	ReadCapacity  int
+	WriteCapacity int
+}
+
+// Flags returns a slice of the configuration options for the leaderboard table
+func (c *LeaderboardTableConfig) Flags() []cli.Flag {
+	return []cli.Flag{
+		cli.StringFlag{
+			Name:        "leaderboard-table-name",
+			EnvVar:      "LEADERBOARD_TABLE_NAME",
+			Value:       "Leaderboard",
+			Destination: &c.TableName,
+		},
+		cli.IntFlag{
+			Name:        "leaderboard-table-read-capacity",
+			EnvVar:      "LEADERBOARD_TABLE_READ_CAPACITY",
+			Value:       5,
+			Destination: &c.ReadCapacity,
+		},
+		cli.IntFlag{
+			Name:        "leaderboard-table-write-capacity",
+			EnvVar:      "LEADERBOARD_TABLE_WRITE_CAPACITY",
+			Value:       5,
+			Destination: &c.WriteCapacity,
+		},
+	}
 }

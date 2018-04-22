@@ -43,7 +43,7 @@ func (t *Token) Unmarshal(aMap map[string]dynamodb.AttributeValue) error {
 }
 
 // CreateTableInput generates the dynamo input to create the token table
-func (t *Token) CreateTableInput() *dynamodb.CreateTableInput {
+func (t *Token) CreateTableInput(tc *dynamostore.TableConfig) *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
 		AttributeDefinitions: []dynamodb.AttributeDefinition{
 			{
@@ -58,10 +58,10 @@ func (t *Token) CreateTableInput() *dynamodb.CreateTableInput {
 			},
 		},
 		ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
-			ReadCapacityUnits:  aws.Int64(5),
-			WriteCapacityUnits: aws.Int64(5),
+			ReadCapacityUnits:  aws.Int64(tc.ReadCapacity),
+			WriteCapacityUnits: aws.Int64(tc.WriteCapacity),
 		},
-		TableName: aws.String(tokenTableName),
+		TableName: aws.String(tc.TableName),
 	}
 }
 

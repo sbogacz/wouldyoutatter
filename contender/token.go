@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
 	"github.com/sbogacz/wouldyoutatter/dynamostore"
+	"github.com/urfave/cli"
 )
 
 // Token is a struct we'll leverage to control the voting part of the API
@@ -74,4 +75,36 @@ func (s *TokenStore) InvalidateToken(ctx context.Context, uid string) error {
 		return errors.Wrap(err, "failed to invalidate token")
 	}
 	return nil
+}
+
+// TokenTableConfig allows us to set configuration details
+// for the dynamo table from the app
+type TokenTableConfig struct {
+	TableName     string
+	ReadCapacity  int
+	WriteCapacity int
+}
+
+// Flags returns a slice of the configuration options for the token table
+func (c *TokenTableConfig) Flags() []cli.Flag {
+	return []cli.Flag{
+		cli.StringFlag{
+			Name:        "token-table-name",
+			EnvVar:      "TOKEN_TABLE_NAME",
+			Value:       "Tokens",
+			Destination: &c.TableName,
+		},
+		cli.IntFlag{
+			Name:        "token-table-read-capacity",
+			EnvVar:      "TOKEN_TABLE_READ_CAPACITY",
+			Value:       5,
+			Destination: &c.ReadCapacity,
+		},
+		cli.IntFlag{
+			Name:        "token-table-write-capacity",
+			EnvVar:      "TOKEN_TABLE_WRITE_CAPACITY",
+			Value:       5,
+			Destination: &c.WriteCapacity,
+		},
+	}
 }

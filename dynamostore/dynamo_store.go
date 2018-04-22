@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -17,6 +18,7 @@ const (
 )
 
 type dynamoStore struct {
+	c      *TableConfig
 	dynamo *dynamodb.DynamoDB
 	lock   *sync.RWMutex
 }
@@ -25,8 +27,9 @@ var _ Storer = (*dynamoStore)(nil)
 
 // New takes a reference to a DynamoDB instance
 // and returns the dynamo-backed version of the store
-func New(d *dynamodb.DynamoDB) Storer {
+func New(c *TableConfig, d *dynamodb.DynamoDB) Storer {
 	return &dynamoStore{
+		c:      c,
 		dynamo: d,
 		lock:   &sync.RWMutex{},
 	}
@@ -154,7 +157,7 @@ func (s *dynamoStore) createTableOnError(ctx context.Context, item Item, err err
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	input := item.CreateTableInput()
+	input := item.CreateTableInput(s.c)
 	req := s.dynamo.CreateTableRequest(input)
 	if _, err := req.Send(); err != nil {
 		log.WithError(err).Errorf("failed to create table for %s", item.Key())
@@ -168,5 +171,20 @@ func (s *dynamoStore) createTableOnError(ctx context.Context, item Item, err err
 	}
 	log.Debug("done waiting")
 
+	// enable TTL is so configured
+	if s.c.TTLEnabled {
+		updateInput := &dynamodb.UpdateTimeToLiveInput{
+			TableName: aws.String(s.c.TableName),
+			TimeToLiveSpecification: &dynamodb.TimeToLiveSpecification{
+				AttributeName: aws.String(s.c.TTLAttributeName),
+				Enabled:       aws.Bool(true),
+			},
+		}
+		enableTTLReq := s.dynamo.UpdateTimeToLiveRequest(updateInput)
+		if _, err := enableTTLReq.Send(); err != nil {
+			log.WithError(err).Errorf("failed to enable TTL on %s", s.c.TableName)
+			return errors.Wrapf(err, "failed to enable TTL on %s", s.c.TableName)
+		}
+	}
 	return nil
 }

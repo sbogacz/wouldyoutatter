@@ -17,18 +17,27 @@ const (
 // MatchupSet is one of the possible matchup combinations
 type MatchupSet struct {
 	ID        string
-	Set       []string
+	Set       []MatchupSetEntry
 	tableName string
-	entry     matchupSetEntry
+	entry     MatchupSetEntry
 }
 
-type matchupSetEntry struct {
+// MatchupSetEntry holds a possible matchup combination
+type MatchupSetEntry struct {
 	Contender1 string
 	Contender2 string
 	remove     bool
 }
 
-func (m matchupSetEntry) String() string {
+func newMatchupSetEntry(c1, c2 string) MatchupSetEntry {
+	contender1, contender2 := OrderMatchup(c1, c2)
+	return MatchupSetEntry{
+		Contender1: contender1,
+		Contender2: contender2,
+	}
+}
+
+func (m MatchupSetEntry) String() string {
 	return fmt.Sprintf("%s§%s", m.Contender1, m.Contender2)
 }
 
@@ -45,18 +54,14 @@ func NewMatchupSetStore(db dynamostore.Storer) *MatchupSetStore {
 	}
 }
 
-// AddToMatchupSet given a uid corresponding to the session, and two contenders, adds them to the set
+// Add given a uid corresponding to the session, and two contenders, adds them to the set
 // of matchups that uid has seen
-func (s *MatchupSetStore) AddToMatchupSet(ctx context.Context, uid, contender1, contender2 string) error {
-	contender1, contender2 = OrderMatchup(contender1, contender2)
-	newMatchupEntry := matchupSetEntry{
-		Contender1: contender1,
-		Contender2: contender2,
-	}
+func (s *MatchupSetStore) Add(ctx context.Context, uid, contender1, contender2 string) error {
+	newEntry := newMatchupSetEntry(contender1, contender2)
 
 	matchupSet := &MatchupSet{
 		ID:        uid,
-		entry:     newMatchupEntry,
+		entry:     newEntry,
 		tableName: userMatchupSetTableName,
 	}
 	if err := s.db.Update(ctx, matchupSet); err != nil {
@@ -65,11 +70,11 @@ func (s *MatchupSetStore) AddToMatchupSet(ctx context.Context, uid, contender1, 
 	return nil
 }
 
-// RemoveFromMatchupSet given a uid corresponding to the session, and two contenders, adds them to the set
+// Remove given a uid corresponding to the session, and two contenders, adds them to the set
 // of matchups that uid has seen
-func (s *MatchupSetStore) RemoveFromMatchupSet(ctx context.Context, uid, contender1, contender2 string) error {
+func (s *MatchupSetStore) Remove(ctx context.Context, uid, contender1, contender2 string) error {
 	contender1, contender2 = OrderMatchup(contender1, contender2)
-	newMatchupEntry := matchupSetEntry{
+	newMatchupEntry := MatchupSetEntry{
 		Contender1: contender1,
 		Contender2: contender2,
 		remove:     true,
@@ -86,8 +91,20 @@ func (s *MatchupSetStore) RemoveFromMatchupSet(ctx context.Context, uid, contend
 	return nil
 }
 
-// RemoveMatchupSet is used to restart a matchup set when it is no longer relevant
-func (s *MatchupSetStore) RemoveMatchupSet(ctx context.Context, uid string) error {
+// Get lets you retrieve a contender by name
+func (s *MatchupSetStore) Get(ctx context.Context, uid string) (*MatchupSet, error) {
+	m := &MatchupSet{ID: uid}
+	item, err := s.db.Get(ctx, m)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to retrieve matchup set")
+
+	}
+	ret := item.(*MatchupSet)
+	return ret, nil
+}
+
+// Delete is used to restart a matchup set when it is no longer relevant
+func (s *MatchupSetStore) Delete(ctx context.Context, uid string) error {
 	if err := s.db.Delete(ctx, &MatchupSet{ID: uid, tableName: userMatchupSetTableName}); err != nil {
 		return errors.Wrap(err, "failed to delete matchup set")
 	}
@@ -122,7 +139,7 @@ func (s *MasterMatchupSetStore) Add(ctx context.Context, contender1 string) erro
 			continue
 		}
 		c1, c2 := OrderMatchup(contender1, contender2.Name)
-		newMatchupEntry := matchupSetEntry{
+		newMatchupEntry := MatchupSetEntry{
 			Contender1: c1,
 			Contender2: c2,
 		}
@@ -155,7 +172,7 @@ func (s *MasterMatchupSetStore) Remove(ctx context.Context, contender1 string) e
 			continue
 		}
 		c1, c2 := OrderMatchup(contender1, contender2.Name)
-		newMatchupEntry := matchupSetEntry{
+		newMatchupEntry := MatchupSetEntry{
 			Contender1: c1,
 			Contender2: c2,
 			remove:     true,
@@ -172,4 +189,16 @@ func (s *MasterMatchupSetStore) Remove(ctx context.Context, contender1 string) e
 
 	}
 	return nil
+}
+
+// Get lets you retrieve a contender by name
+func (s *MasterMatchupSetStore) Get(ctx context.Context) (*MatchupSet, error) {
+	m := &MatchupSet{ID: masterKey}
+	item, err := s.db.Get(ctx, m)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to retrieve matchup set")
+
+	}
+	ret := item.(*MatchupSet)
+	return ret, nil
 }
