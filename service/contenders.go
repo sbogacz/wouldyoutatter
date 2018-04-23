@@ -31,8 +31,16 @@ func (s *Service) createContender(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// get all contenders
+	allContenders, err := s.contenderStore.GetAll(context.TODO())
+	if err != nil {
+		http.Error(w, "failed to update master matchup set", http.StatusInternalServerError)
+		log.WithError(err).Error("failed to retrieve all contenders to update master matchup set")
+		return
+	}
+
 	// add to master matchup set
-	if err := s.masterMatchupSet.Add(context.TODO(), c.Name); err != nil {
+	if err := s.masterMatchupSet.Add(context.TODO(), c.Name, allContenders); err != nil {
 		http.Error(w, "failed to update master matchup set", http.StatusInternalServerError)
 		log.WithError(err).Error("failed to update master matchup set")
 		return

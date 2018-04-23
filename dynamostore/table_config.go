@@ -11,8 +11,8 @@ import (
 // for the dynamo table from the app
 type TableConfig struct {
 	TableName     string
-	ReadCapacity  int
-	WriteCapacity int
+	ReadCapacity  int64
+	WriteCapacity int64
 }
 
 // Flags returns a slice of the configuration options for the contender table
@@ -25,13 +25,13 @@ func (c *TableConfig) Flags(prefix, defaultTableName string) []cli.Flag {
 			Value:       defaultTableName,
 			Destination: &c.TableName,
 		},
-		cli.IntFlag{
+		cli.Int64Flag{
 			Name:        cliFlagName(prefix, "table-read-capacity"),
 			EnvVar:      envVarName(prefix, "TABLE_READ_CAPACITY"),
 			Value:       5,
 			Destination: &c.ReadCapacity,
 		},
-		cli.IntFlag{
+		cli.Int64Flag{
 			Name:        cliFlagName(prefix, "table-write-capacity"),
 			EnvVar:      envVarName(prefix, "TABLE_WRITE_CAPACITY"),
 			Value:       5,

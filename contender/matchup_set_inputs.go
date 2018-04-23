@@ -17,16 +17,14 @@ func (m MatchupSet) Key() string {
 // Marshal encodes the values of a contender into the map format
 // that dynamo expects
 func (m MatchupSet) Marshal() map[string]dynamodb.AttributeValue {
-	set := make([]dynamodb.AttributeValue, 0, len(m.Set))
+	set := make([]string, 0, len(m.Set))
 	for _, entry := range m.Set {
-		set = append(set, dynamodb.AttributeValue{
-			SS: []string{entry.Contender1, entry.Contender2},
-		})
+		set = append(set, entry.String())
 	}
 	return map[string]dynamodb.AttributeValue{
 		"ID": stringToAttributeValue(m.ID),
 		"MatchupSet": {
-			L: set,
+			SS: set,
 		},
 	}
 }
@@ -37,12 +35,9 @@ func (m *MatchupSet) Unmarshal(aMap map[string]dynamodb.AttributeValue) error {
 	if !ok {
 		return errors.New("no MatchupSet found")
 	}
-	set := make([]MatchupSetEntry, 0, len(setAttribute.L))
-	for _, entry := range setAttribute.L {
-		if len(entry.SS) != 2 {
-			continue
-		}
-		set = append(set, newMatchupSetEntry(entry.SS[0], entry.SS[1]))
+	set := make([]MatchupSetEntry, 0, len(setAttribute.SS))
+	for _, entry := range setAttribute.SS {
+		set = append(set, matchupEntryfromString(entry))
 	}
 
 	newMatchupSet := &MatchupSet{
@@ -54,7 +49,7 @@ func (m *MatchupSet) Unmarshal(aMap map[string]dynamodb.AttributeValue) error {
 }
 
 // CreateTableInput generates the dynamo input to create the matchupSet table
-func (m *MatchupSet) CreateTableInput() *dynamodb.CreateTableInput {
+func (m *MatchupSet) CreateTableInput(tc *dynamostore.TableConfig) *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
 		AttributeDefinitions: []dynamodb.AttributeDefinition{
 			{
@@ -69,42 +64,48 @@ func (m *MatchupSet) CreateTableInput() *dynamodb.CreateTableInput {
 			},
 		},
 		ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
-			ReadCapacityUnits:  aws.Int64(5),
-			WriteCapacityUnits: aws.Int64(5),
+			ReadCapacityUnits:  aws.Int64(tc.ReadCapacity),
+			WriteCapacityUnits: aws.Int64(tc.WriteCapacity),
 		},
-		TableName: aws.String(m.tableName),
+		TableName: aws.String(tc.TableName),
 	}
 }
 
 // DescribeTableInput generates the query we need to describe the matchup set tables
-func (m *MatchupSet) DescribeTableInput() *dynamodb.DescribeTableInput {
+func (m *MatchupSet) DescribeTableInput(tableName string) *dynamodb.DescribeTableInput {
 	return &dynamodb.DescribeTableInput{
-		TableName: aws.String(m.tableName),
+		TableName: aws.String(tableName),
 	}
 }
 
+// UpdateTimeToLiveInput is a no-op for matchup sets
+func (m *MatchupSet) UpdateTimeToLiveInput(tableName string) *dynamodb.UpdateTimeToLiveInput {
+	return nil
+}
+
 // GetItemInput generates the dynamodb.GetItemInput for the given matchupSet
-func (m *MatchupSet) GetItemInput() *dynamodb.GetItemInput {
+func (m *MatchupSet) GetItemInput(tableName string) *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
-		TableName: aws.String(m.tableName),
+		TableName: aws.String(tableName),
 		Key: map[string]dynamodb.AttributeValue{
 			"ID": {S: aws.String(m.ID)},
 		},
+		ConsistentRead: aws.Bool(true),
 	}
 }
 
 // PutItemInput generates the dynamodb.PutItemInput for the given matchupSet
-func (m *MatchupSet) PutItemInput() *dynamodb.PutItemInput {
+func (m *MatchupSet) PutItemInput(tableName string) *dynamodb.PutItemInput {
 	return &dynamodb.PutItemInput{
-		TableName: aws.String(m.tableName),
+		TableName: aws.String(tableName),
 		Item:      m.Marshal(),
 	}
 }
 
 // DeleteItemInput generates the dynamodb.DeleteItemInput for the given matchupSet
-func (m *MatchupSet) DeleteItemInput() *dynamodb.DeleteItemInput {
+func (m *MatchupSet) DeleteItemInput(tableName string) *dynamodb.DeleteItemInput {
 	return &dynamodb.DeleteItemInput{
-		TableName: aws.String(m.tableName),
+		TableName: aws.String(tableName),
 		Key: map[string]dynamodb.AttributeValue{
 			"ID": {S: aws.String(m.ID)},
 		},
@@ -112,46 +113,22 @@ func (m *MatchupSet) DeleteItemInput() *dynamodb.DeleteItemInput {
 }
 
 // UpdateItemInput is a no-op, since we don't update the matchupSet
-func (m *MatchupSet) UpdateItemInput() *dynamodb.UpdateItemInput {
-	updateExpression := "ADD MatchupSet :c"
+func (m *MatchupSet) UpdateItemInput(tableName string) *dynamodb.UpdateItemInput {
+	updateExpression := "ADD MatchupSet :c" //ADD MatchupSet :c"
 	if m.entry.remove {
 		updateExpression = "DELETE MatchupSet :c"
 	}
 	return &dynamodb.UpdateItemInput{
-		TableName: aws.String(m.tableName),
+		TableName: aws.String(tableName),
 		Key: map[string]dynamodb.AttributeValue{
 
 			"ID": {S: aws.String(m.ID)},
 		},
-		UpdateExpression:          aws.String(updateExpression),
-		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{":c": {SS: []string{m.entry.Contender1, m.entry.Contender2}}},
+		UpdateExpression: aws.String(updateExpression),
+		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{
+			":c": {
+				SS: []string{m.entry.String()},
+			},
+		},
 	}
-}
-
-// Contenders is a collection that implements Scannable
-type Contenders []Contender
-
-// ScanInput producest a dynamodb ScanInput object
-func (c *Contenders) ScanInput() *dynamodb.ScanInput {
-	return &dynamodb.ScanInput{
-		TableName: aws.String(contenderTableName),
-	}
-}
-
-// Unmarshal allows results to be unmarshalled directly into the struct
-func (c *Contenders) Unmarshal(maps []map[string]dynamodb.AttributeValue) error {
-	cs := make([]*Contender, len(maps))
-	for i := range cs {
-		cs[i] = &Contender{}
-		if err := cs[i].Unmarshal(maps[i]); err != nil {
-			return errors.Wrap(err, "failed to unmarshal Contenders")
-		}
-	}
-	contenders := make([]Contender, len(cs))
-	for i := range cs {
-		contenders[i] = *cs[i]
-	}
-	*c = contenders
-	return nil
-
 }

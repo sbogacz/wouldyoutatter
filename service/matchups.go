@@ -3,15 +3,53 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"math/rand"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/satori/go.uuid"
 	"github.com/sbogacz/wouldyoutatter/contender"
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	// CookieKey refers to the name for the cookie we create
+	CookieKey = "wouldyoutatterID"
+)
+
 func (s *Service) chooseMatchup(w http.ResponseWriter, req *http.Request) {
-	userID := req.Header.Get("X-Tatter-UserID")
+	userIDCookie, err := req.Cookie(CookieKey)
+	var userID string
+	var newUser bool
+	// if we saw an error, that's because the cookie wasn't found
+	if err != nil {
+		uid, err := uuid.NewV4()
+		if err != nil {
+			log.WithError(err).Error("couldn't generate a user ID to put in the cookie")
+		} else {
+			userID = uid.String()
+		}
+		// put the token in the request since we redirect
+		req.AddCookie(&http.Cookie{
+			Name:  CookieKey,
+			Value: userID,
+			Path:  "/",
+		})
+		http.SetCookie(w, &http.Cookie{
+			Name:  CookieKey,
+			Value: userID,
+			Path:  "/",
+		})
+
+		newUser = true
+	} else {
+		userID = userIDCookie.Value
+	}
+
+	log.WithField("userID", userID).Info("getting new matchup")
 	masterSet, err := s.masterMatchupSet.Get(context.TODO())
 	if err != nil {
 		http.Error(w, "failed to retrieve master matchup set", http.StatusInternalServerError)
@@ -20,7 +58,7 @@ func (s *Service) chooseMatchup(w http.ResponseWriter, req *http.Request) {
 	}
 
 	userSet := &contender.MatchupSet{}
-	if userID != "" {
+	if !newUser {
 		userSet, err = s.userMatchupSet.Get(context.TODO(), userID)
 		if err != nil {
 			http.Error(w, "failed to retrieve user matchup set", http.StatusInternalServerError)
@@ -32,25 +70,23 @@ func (s *Service) chooseMatchup(w http.ResponseWriter, req *http.Request) {
 	possibleMatchups := masterSet.Set
 	seenMatchups := userSet.Set
 
+	if len(possibleMatchups) < 1 {
+		w.WriteHeader(http.StatusNoContent)
+		w.Write([]byte("no matchups currently available"))
+		return
+	}
+
 	// if the lists are the same length, then reset the user's set
 	if len(seenMatchups) == len(possibleMatchups) {
-		if err := s.userMatchupSet.Delete(context.TODO(), userID); err != nil {
+		if deleteErr := s.userMatchupSet.Delete(context.TODO(), userID); deleteErr != nil {
 			http.Error(w, "failed to reset user matchup set", http.StatusInternalServerError)
-			log.WithError(err).Error("failed to reset user matchup set")
+			log.WithError(deleteErr).Error("failed to reset user matchup set")
 			return
 		}
 		seenMatchups = []contender.MatchupSetEntry{}
 	}
 
-	var matchup contender.MatchupSetEntry
-	// do it naively for now
-	for _, possibleMatchup := range possibleMatchups {
-		for _, seenMatchup := range seenMatchups {
-			if seenMatchup.String() != possibleMatchup.String() {
-				matchup = possibleMatchup
-			}
-		}
-	}
+	matchup := chooseNewMatchup(possibleMatchups, seenMatchups)
 
 	// create a token for the matchup
 	token, err := s.tokenStore.CreateToken(context.TODO(), matchup.Contender1, matchup.Contender2)
@@ -60,42 +96,126 @@ func (s *Service) chooseMatchup(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// mark this matchup as shown to the user
+	if err := s.userMatchupSet.Add(context.TODO(), userID, matchup.Contender1, matchup.Contender2); err != nil {
+		log.WithError(err).Error("failed to record seen matchup")
+	}
+
+	newURLBase := strings.Split(req.URL.String(), "/random")[0]
+	newURL := fmt.Sprintf("%s/%s/%s?token=%s", newURLBase, matchup.Contender1, matchup.Contender2, token.ID)
+	http.Redirect(w, req, newURL, http.StatusSeeOther)
 }
 
 func (s *Service) getMatchupStats(w http.ResponseWriter, req *http.Request) {
 	contender1, contender2 := chi.URLParam(req, "contender1"), chi.URLParam(req, "contender2")
 	if contender1 == "" {
-		writeErrorMsg(w, http.StatusBadRequest, "contender1 cannot be empty in order to retrieve stats")
+		http.Error(w, "contender1 cannot be empty in order to retrieve stats", http.StatusBadRequest)
 		return
 	}
 	if contender2 == "" {
-		writeErrorMsg(w, http.StatusBadRequest, "contender2 cannot be empty in order to retrieve stats")
+		http.Error(w, "contender2 cannot be empty in order to retrieve stats", http.StatusBadRequest)
 		return
+	}
+
+	// persist the cookie since we might be getting redirected here
+	userIDCookie, err := req.Cookie(CookieKey)
+	// if we saw an error, that's because the cookie wasn't found
+	if err == nil {
+		log.WithField("cookie", userIDCookie).Info("on the redirect")
+		// put the token in the request since we redirect
+		http.SetCookie(w, userIDCookie)
 	}
 
 	matchup, err := s.matchupStore.Get(context.TODO(), contender1, contender2)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	e := json.NewEncoder(w)
 	if err := e.Encode(matchup); err != nil {
 		log.WithError(err).Error("failed to encode matchup")
-		writeErrorMsg(w, http.StatusInternalServerError, "failed to encode matchup")
+		http.Error(w, "failed to encode matchup", http.StatusInternalServerError)
+		return
 	}
 	w.WriteHeader(http.StatusOK)
+}
+
+type votePayload struct {
+	Winner string
 }
 
 func (s *Service) voteOnMatchup(w http.ResponseWriter, req *http.Request) {
 	contender1, contender2 := chi.URLParam(req, "contender1"), chi.URLParam(req, "contender2")
 	if contender1 == "" {
-		writeErrorMsg(w, http.StatusBadRequest, "contender1 cannot be empty in order to retrieve stats")
+		http.Error(w, "contender1 cannot be empty in order to vote", http.StatusBadRequest)
 		return
 	}
 	if contender2 == "" {
-		writeErrorMsg(w, http.StatusBadRequest, "contender2 cannot be empty in order to retrieve stats")
+		http.Error(w, "contender2 cannot be empty in order to vote", http.StatusBadRequest)
 		return
 	}
 
+	// validate token
+	token := req.URL.Query().Get("token")
+	if token == "" {
+		http.Error(w, "must provide a valid token in order to vote", http.StatusUnauthorized)
+		return
+	}
+	ok, err := s.tokenStore.ValidateToken(context.TODO(), token, contender1, contender2)
+	if err != nil {
+		http.Error(w, "failed to validate token", http.StatusInternalServerError)
+		log.WithError(err).Error("failed to authenticate token against Dynamo")
+		return
+	}
+
+	if !ok {
+		http.Error(w, "token not valid for the matchup", http.StatusUnauthorized)
+		return
+	}
+
+	v := votePayload{}
+	d := json.NewDecoder(req.Body)
+	defer req.Body.Close()
+
+	if err := d.Decode(&v); err != nil {
+		http.Error(w, "couldn't decode vote payload", http.StatusBadRequest)
+		return
+	}
+	if v.Winner != contender1 || v.Winner != contender2 {
+		http.Error(w, "can only vote for a winner within the matchup", http.StatusBadRequest)
+		return
+	}
+
+	loser := contender2
+	if v.Winner == contender2 {
+		loser = contender1
+	}
+	// so the token is valid, now VOTE!
+	if err := s.matchupStore.ScoreMatchup(context.TODO(), v.Winner, loser); err != nil {
+		http.Error(w, "failed to record vote", http.StatusInternalServerError)
+		log.WithError(err).Error("failed to record vote in DB")
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func chooseNewMatchup(possibleMatchups []contender.MatchupSetEntry, seenMatchups []contender.MatchupSetEntry) contender.MatchupSetEntry {
+	// if we haven't seen any, choose a random one
+	if len(seenMatchups) == 0 {
+		rand.Seed(time.Now().Unix()) // initialize global pseudo random generator
+		return possibleMatchups[rand.Intn(len(possibleMatchups))]
+	}
+	// do it naively for now
+	for _, possibleMatchup := range possibleMatchups {
+
+		log.WithField("possible", possibleMatchup).Info("possible matchup")
+		for _, seenMatchup := range seenMatchups {
+			log.WithField("seen", seenMatchup).Info("seen matchup")
+			if seenMatchup.String() != possibleMatchup.String() {
+				return possibleMatchup
+			}
+		}
+	}
+	return contender.MatchupSetEntry{}
 }

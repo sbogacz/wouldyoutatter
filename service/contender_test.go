@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/sbogacz/wouldyoutatter/contender"
 	"github.com/sbogacz/wouldyoutatter/service"
@@ -76,4 +78,94 @@ func TestSimpleContenderCRUD(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusNotFound, resp.StatusCode)
 	})
+}
+
+func TestAddingSeveralContendersCreatesPossibleMatchups(t *testing.T) {
+	things := []string{"banana", "apple", "window", "troll"}
+	contenders := []contender.Contender{}
+	for _, thing := range things {
+		contenders = append(contenders, contender.Contender{
+			Name:        fmt.Sprintf("%s", thing),
+			Description: fmt.Sprintf("a %s", thing),
+			SVG:         []byte(fmt.Sprintf("pretend this is an svg of %s", thing)),
+		})
+
+	}
+
+	t.Run("create all of the contenders", func(t *testing.T) {
+		for _, contender := range contenders {
+			b, err := json.Marshal(&contender)
+			require.NoError(t, err)
+
+			// first go should fail since it's unauthorized
+			req, err := http.NewRequest("POST", contenderAddress, bytes.NewBuffer(b))
+			require.NoError(t, err)
+
+			req.Header.Set("X-Tatter-Master", service.DefaultMasterKey)
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			require.Equal(t, http.StatusCreated, resp.StatusCode)
+		}
+	})
+
+	t.Run("as we ask for matchups, we should be able to see 6 different ones before looping", func(t *testing.T) {
+		var cookie *http.Cookie
+		previousMatchupURLs := []string{}
+		var sawRepeat bool
+		var matchupsSeen int
+
+		redirectClient := http.Client{}
+		redirectClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			previousMatchupURLs = append(previousMatchupURLs, req.URL.String())
+			return nil
+		}
+
+		for {
+			if sawRepeat {
+				if matchupsSeen != 6 {
+					fmt.Println("saw a repeat without seeing every combination")
+					require.True(t, false)
+				}
+				break
+			}
+			req, err := http.NewRequest("GET", fmt.Sprintf("%s/random", matchupAddress), nil)
+			require.NoError(t, err)
+			// if have cookie, set
+			if cookie != nil {
+				req.AddCookie(cookie)
+			}
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+			// if we didn't have a cookie, set it from the response
+			if cookie == nil {
+				fmt.Printf("what's in cookies %+v\n", resp.Cookies())
+				for _, c := range resp.Cookies() {
+					if c.Name == service.CookieKey {
+						cookie = c
+					}
+				}
+			}
+
+			matchupURL := strings.Split(resp.Request.URL.String(), "?")[0]
+			fmt.Printf("matchup URL: %s\n\n", matchupURL)
+			if stringInSlice(matchupURL, previousMatchupURLs) {
+				sawRepeat = true
+			}
+			previousMatchupURLs = append(previousMatchupURLs, matchupURL)
+			matchupsSeen++
+			time.Sleep(time.Millisecond * 200)
+		}
+		require.True(t, true)
+
+	})
+}
+
+func stringInSlice(s string, arr []string) bool {
+	for _, str := range arr {
+		if s == str {
+			return true
+		}
+	}
+	return false
 }

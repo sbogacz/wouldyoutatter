@@ -8,6 +8,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/go-chi/chi"
+	"github.com/pkg/errors"
 	"github.com/sbogacz/wouldyoutatter/contender"
 	"github.com/sbogacz/wouldyoutatter/dynamostore"
 
@@ -31,31 +32,18 @@ type Service struct {
 
 // New tries to cerate a new instance of Service
 func New(c Config) (*Service, error) {
-	var storer dynamostore.Storer
-	if c.AWSRegion == "" {
-		storer = dynamostore.NewInMemoryStore()
-	} else {
-		cfg, err := c.AWSConfig()
-		if err != nil {
-			return nil, err
-		}
-		storer = dynamostore.New(dynamodb.New(cfg))
-	}
-
 	// set log level
 	log.SetLevel(c.logLevelToLogrus())
 
-	return &Service{
-		config:           c,
-		contenderStore:   contender.NewStore(storer),
-		matchupStore:     contender.NewMatchupStore(storer),
-		leaderboard:      contender.NewLeaderboardStore(storer),
-		userMatchupSet:   contender.NewMatchupSetStore(storer),
-		masterMatchupSet: contender.NewMasterMatchupSetStore(storer),
-		tokenStore:       contender.NewTokenStore(storer),
-		router:           chi.NewRouter(),
-		cancel:           make(chan struct{}),
-	}, nil
+	ret := &Service{
+		config: c,
+		router: chi.NewRouter(),
+		cancel: make(chan struct{}),
+	}
+	if err := ret.configureStores(); err != nil {
+		return nil, errors.Wrap(err, "failed to configure necessary stores")
+	}
+	return ret, nil
 }
 
 // Start starts the server
@@ -69,13 +57,13 @@ func (s *Service) Start() {
 		})
 	})
 	// route the matchups endpoints
-	/*s.router.Route("/matchups", func(r chi.Router) {
-		r.Get("/", s.chooseMatchup)
+	s.router.Route("/matchups", func(r chi.Router) {
+		r.Get("/random", s.chooseMatchup)
 		r.Route("/{contenderID1}/{contenderID2}", func(r chi.Router) {
 			r.Get("/", s.getMatchupStats)
-			r.Post("/", s.voteOnMatchup)
+			r.Post("/vote", s.voteOnMatchup)
 		})
-	})*/
+	})
 
 	h := &http.Server{
 		Addr:         fmt.Sprintf(":%d", s.config.Port),
@@ -100,4 +88,36 @@ func (s *Service) Start() {
 // Stop stops the server gracefully
 func (s *Service) Stop() {
 	s.cancel <- struct{}{}
+}
+
+func (s *Service) configureStores() error {
+	if s.config.AWSRegion == "" {
+		storer := dynamostore.NewInMemoryStore()
+		s.contenderStore = contender.NewStore(storer)
+		s.matchupStore = contender.NewMatchupStore(storer)
+		s.leaderboard = contender.NewLeaderboardStore(storer)
+		s.userMatchupSet = contender.NewMatchupSetStore(storer)
+		s.masterMatchupSet = contender.NewMasterMatchupSetStore(storer)
+		s.tokenStore = contender.NewTokenStore(storer)
+	}
+	cfg, err := s.config.AWSConfig()
+	if err != nil {
+		return err
+	}
+	// instantiate Storers with their respective table configs
+	contenderStorer := dynamostore.New(dynamodb.New(cfg), s.config.ContenderTableConfig)
+	matchupStorer := dynamostore.New(dynamodb.New(cfg), s.config.MatchupTableConfig)
+	leaderboardStorer := dynamostore.New(dynamodb.New(cfg), s.config.LeaderboardTableConfig)
+	userMatchupSetStorer := dynamostore.New(dynamodb.New(cfg), s.config.UserMatchupsTableConfig)
+	masterMatchupSetStorer := dynamostore.New(dynamodb.New(cfg), s.config.MasterMatchupsTableConfig)
+	tokenStorer := dynamostore.New(dynamodb.New(cfg), s.config.TokenTableConfig)
+
+	// instantiate the respective stoers we need
+	s.contenderStore = contender.NewStore(contenderStorer)
+	s.matchupStore = contender.NewMatchupStore(matchupStorer)
+	s.leaderboard = contender.NewLeaderboardStore(leaderboardStorer)
+	s.userMatchupSet = contender.NewMatchupSetStore(userMatchupSetStorer)
+	s.masterMatchupSet = contender.NewMasterMatchupSetStore(masterMatchupSetStorer)
+	s.tokenStore = contender.NewTokenStore(tokenStorer)
+	return nil
 }

@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	matchupTableName = "Matchups"
+	tableName = "Matchups"
 )
 
 var _ dynamostore.Item = (*Matchup)(nil)
@@ -54,7 +54,7 @@ func (m *Matchup) Unmarshal(aMap map[string]dynamodb.AttributeValue) error {
 }
 
 // CreateTableInput generates the dynamo input to create the matchups table
-func (m *Matchup) CreateTableInput() *dynamodb.CreateTableInput {
+func (m *Matchup) CreateTableInput(tc *dynamostore.TableConfig) *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
 		AttributeDefinitions: []dynamodb.AttributeDefinition{
 			{
@@ -77,24 +77,29 @@ func (m *Matchup) CreateTableInput() *dynamodb.CreateTableInput {
 			},
 		},
 		ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
-			ReadCapacityUnits:  aws.Int64(5),
-			WriteCapacityUnits: aws.Int64(5),
+			ReadCapacityUnits:  aws.Int64(tc.ReadCapacity),
+			WriteCapacityUnits: aws.Int64(tc.WriteCapacity),
 		},
-		TableName: aws.String(matchupTableName),
+		TableName: aws.String(tc.TableName),
 	}
 }
 
 // DescribeTableInput generates the query we need to describe the matchups table
-func (m *Matchup) DescribeTableInput() *dynamodb.DescribeTableInput {
+func (m *Matchup) DescribeTableInput(tableName string) *dynamodb.DescribeTableInput {
 	return &dynamodb.DescribeTableInput{
-		TableName: aws.String(matchupTableName),
+		TableName: aws.String(tableName),
 	}
 }
 
+// UpdateTimeToLiveInput is a no-op for matchups
+func (m *Matchup) UpdateTimeToLiveInput(tableName string) *dynamodb.UpdateTimeToLiveInput {
+	return nil
+}
+
 // GetItemInput generates the dynamodb.GetItemInput for the given matchup
-func (m *Matchup) GetItemInput() *dynamodb.GetItemInput {
+func (m *Matchup) GetItemInput(tableName string) *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
-		TableName: aws.String(matchupTableName),
+		TableName: aws.String(tableName),
 		Key: map[string]dynamodb.AttributeValue{
 			"Contender1": {S: aws.String(m.Contender1)},
 			"Contender2": {S: aws.String(m.Contender2)},
@@ -103,17 +108,17 @@ func (m *Matchup) GetItemInput() *dynamodb.GetItemInput {
 }
 
 // PutItemInput generates the dynamodb.PutItemInput for the given matchup
-func (m *Matchup) PutItemInput() *dynamodb.PutItemInput {
+func (m *Matchup) PutItemInput(tableName string) *dynamodb.PutItemInput {
 	return &dynamodb.PutItemInput{
-		TableName: aws.String(matchupTableName),
+		TableName: aws.String(tableName),
 		Item:      m.Marshal(),
 	}
 }
 
 // DeleteItemInput generates the dynamodb.DeleteItemInput for the given matchup
-func (m *Matchup) DeleteItemInput() *dynamodb.DeleteItemInput {
+func (m *Matchup) DeleteItemInput(tableName string) *dynamodb.DeleteItemInput {
 	return &dynamodb.DeleteItemInput{
-		TableName: aws.String(matchupTableName),
+		TableName: aws.String(tableName),
 		Key: map[string]dynamodb.AttributeValue{
 			"Contender1": {S: aws.String(m.Contender1)},
 			"Contender2": {S: aws.String(m.Contender2)},
@@ -122,16 +127,16 @@ func (m *Matchup) DeleteItemInput() *dynamodb.DeleteItemInput {
 }
 
 // UpdateItemInput generates the dynamodb.UpdateItemInput for the given matchup
-func (m *Matchup) UpdateItemInput() *dynamodb.UpdateItemInput {
+func (m *Matchup) UpdateItemInput(tableName string) *dynamodb.UpdateItemInput {
 	if m.contender1Won {
-		return m.contender1WinInput()
+		return m.contender1WinInput(tableName)
 	}
-	return m.contender2WinInput()
+	return m.contender2WinInput(tableName)
 }
 
-func (m *Matchup) contender1WinInput() *dynamodb.UpdateItemInput {
+func (m *Matchup) contender1WinInput(tableName string) *dynamodb.UpdateItemInput {
 	return &dynamodb.UpdateItemInput{
-		TableName: aws.String(matchupTableName),
+		TableName: aws.String(tableName),
 		Key: map[string]dynamodb.AttributeValue{
 			"Contender1": {S: aws.String(m.Contender1)},
 			"Contender2": {S: aws.String(m.Contender2)},
@@ -141,9 +146,9 @@ func (m *Matchup) contender1WinInput() *dynamodb.UpdateItemInput {
 	}
 }
 
-func (m *Matchup) contender2WinInput() *dynamodb.UpdateItemInput {
+func (m *Matchup) contender2WinInput(tableName string) *dynamodb.UpdateItemInput {
 	return &dynamodb.UpdateItemInput{
-		TableName: aws.String(matchupTableName),
+		TableName: aws.String(tableName),
 		Key: map[string]dynamodb.AttributeValue{
 			"Contender1": {S: aws.String(m.Contender1)},
 			"Contender2": {S: aws.String(m.Contender2)},

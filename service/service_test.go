@@ -18,6 +18,8 @@ var (
 	s                     *service.Service
 	baseAddress           string
 	contenderAddress      string
+	matchupAddress        string
+	leaderboardAddress    string
 )
 
 func TestMain(m *testing.M) {
@@ -28,11 +30,15 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("failed to get free port for tests: %v", err)
 	}
-	config := service.Config{
-		Port:      openPort,
-		LogLevel:  "INFO",
-		MasterKey: service.DefaultMasterKey,
+	config := service.Config{}
+
+	// configure default table names
+	for _, f := range config.Flags() {
+		f.Apply(flag.CommandLine)
 	}
+	// override options for the test
+	config.Port = openPort
+	config.LogLevel = "INFO"
 
 	if *runAgainstLocalDynamo {
 		config.AWSRegion = "local"
@@ -44,6 +50,8 @@ func TestMain(m *testing.M) {
 	}
 	baseAddress = fmt.Sprintf("http://127.0.0.1:%d", openPort)
 	contenderAddress = fmt.Sprintf("%s/contenders", baseAddress)
+	matchupAddress = fmt.Sprintf("%s/matchups", baseAddress)
+	leaderboardAddress = fmt.Sprintf("%s/leaderboard", baseAddress)
 
 	go s.Start()
 	status := m.Run()
@@ -77,8 +85,11 @@ func teardownTables(config service.Config) error {
 	svc := dynamodb.New(cfg)
 
 	tables := []string{
-		"Contenders",
-		"PossibleMatchups",
+		service.DefaultContenderTableName,
+		service.DefaultMasterMatchupsTableName,
+		service.DefaultUserMatchupsTableName,
+		service.DefaultTokenTableName,
+		service.DefaultMatchupTableName,
 	}
 
 	for _, table := range tables {

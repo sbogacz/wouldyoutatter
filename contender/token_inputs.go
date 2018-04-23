@@ -7,10 +7,6 @@ import (
 	"github.com/sbogacz/wouldyoutatter/dynamostore"
 )
 
-const (
-	tokenTableName = "Tokens"
-)
-
 var _ dynamostore.Item = (*Token)(nil)
 
 // Key returns the Contenders name, and implements the dynamostore Item interface
@@ -25,6 +21,7 @@ func (t Token) Marshal() map[string]dynamodb.AttributeValue {
 		"ID":         stringToAttributeValue(t.ID),
 		"Contender1": stringToAttributeValue(t.Contender1),
 		"Contender2": stringToAttributeValue(t.Contender2),
+		"ExpireAt":   int64ToAttributeValue(t.ExpireAt),
 	}
 }
 
@@ -66,9 +63,9 @@ func (t *Token) CreateTableInput(tc *dynamostore.TableConfig) *dynamodb.CreateTa
 }
 
 // DescribeTableInput generates the query we need to describe the token table
-func (t *Token) DescribeTableInput() *dynamodb.DescribeTableInput {
+func (t *Token) DescribeTableInput(tableName string) *dynamodb.DescribeTableInput {
 	return &dynamodb.DescribeTableInput{
-		TableName: aws.String(tokenTableName),
+		TableName: aws.String(tableName),
 	}
 }
 
@@ -77,16 +74,16 @@ func (t *Token) UpdateTimeToLiveInput(tableName string) *dynamodb.UpdateTimeToLi
 	return &dynamodb.UpdateTimeToLiveInput{
 		TableName: aws.String(tableName),
 		TimeToLiveSpecification: &dynamodb.TimeToLiveSpecification{
-			AttributeName: aws.String(s.c.TTLAttributeName),
+			AttributeName: aws.String("ExpireAt"),
 			Enabled:       aws.Bool(true),
 		},
 	}
 }
 
 // GetItemInput generates the dynamodb.GetItemInput for the given token
-func (t *Token) GetItemInput() *dynamodb.GetItemInput {
+func (t *Token) GetItemInput(tableName string) *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
-		TableName: aws.String(tokenTableName),
+		TableName: aws.String(tableName),
 		Key: map[string]dynamodb.AttributeValue{
 			"ID": {S: aws.String(t.ID)},
 		},
@@ -94,17 +91,17 @@ func (t *Token) GetItemInput() *dynamodb.GetItemInput {
 }
 
 // PutItemInput generates the dynamodb.PutItemInput for the given token
-func (t *Token) PutItemInput() *dynamodb.PutItemInput {
+func (t *Token) PutItemInput(tableName string) *dynamodb.PutItemInput {
 	return &dynamodb.PutItemInput{
-		TableName: aws.String(tokenTableName),
+		TableName: aws.String(tableName),
 		Item:      t.Marshal(),
 	}
 }
 
 // DeleteItemInput generates the dynamodb.DeleteItemInput for the given token
-func (t *Token) DeleteItemInput() *dynamodb.DeleteItemInput {
+func (t *Token) DeleteItemInput(tableName string) *dynamodb.DeleteItemInput {
 	return &dynamodb.DeleteItemInput{
-		TableName: aws.String(tokenTableName),
+		TableName: aws.String(tableName),
 		Key: map[string]dynamodb.AttributeValue{
 			"ID": {S: aws.String(t.ID)},
 		},
@@ -112,6 +109,6 @@ func (t *Token) DeleteItemInput() *dynamodb.DeleteItemInput {
 }
 
 // UpdateItemInput is a no-op, since we don't update the token
-func (t *Token) UpdateItemInput() *dynamodb.UpdateItemInput {
+func (t *Token) UpdateItemInput(tableName string) *dynamodb.UpdateItemInput {
 	return nil
 }

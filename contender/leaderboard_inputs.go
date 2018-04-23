@@ -7,10 +7,6 @@ import (
 	"github.com/sbogacz/wouldyoutatter/dynamostore"
 )
 
-const (
-	leaderboardTableName = "LeaderboardEntry"
-)
-
 var _ dynamostore.Item = (*LeaderboardEntry)(nil)
 
 // Key returns the LeaderboardEntrys name, and implements the dynamostore Item interface
@@ -52,7 +48,7 @@ func (l *LeaderboardEntry) Unmarshal(aMap map[string]dynamodb.AttributeValue) er
 }
 
 // CreateTableInput generates the dynamo input to create the LeaderboardEntry table
-func (l *LeaderboardEntry) CreateTableInput() *dynamodb.CreateTableInput {
+func (l *LeaderboardEntry) CreateTableInput(tc *dynamostore.TableConfig) *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
 		AttributeDefinitions: []dynamodb.AttributeDefinition{
 			{
@@ -83,64 +79,69 @@ func (l *LeaderboardEntry) CreateTableInput() *dynamodb.CreateTableInput {
 			},
 		},
 		ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
-			ReadCapacityUnits:  aws.Int64(5),
-			WriteCapacityUnits: aws.Int64(5),
+			ReadCapacityUnits:  aws.Int64(tc.ReadCapacity),
+			WriteCapacityUnits: aws.Int64(tc.WriteCapacity),
 		},
-		TableName: aws.String(leaderboardTableName),
+		TableName: aws.String(tc.TableName),
 	}
 }
 
 // DescribeTableInput generates the query we need to describe the leaderboard table
-func (l *LeaderboardEntry) DescribeTableInput() *dynamodb.DescribeTableInput {
+func (l *LeaderboardEntry) DescribeTableInput(tableName string) *dynamodb.DescribeTableInput {
 	return &dynamodb.DescribeTableInput{
-		TableName: aws.String(leaderboardTableName),
+		TableName: aws.String(tableName),
 	}
 }
 
+// UpdateTimeToLiveInput is a no-op for the leaderboard
+func (l *LeaderboardEntry) UpdateTimeToLiveInput(tableName string) *dynamodb.UpdateTimeToLiveInput {
+	return nil
+}
+
 // GetItemInput generates the dynamodb.GetItemInput for the given leaderboard entry
-func (l *LeaderboardEntry) GetItemInput() *dynamodb.GetItemInput {
+func (l *LeaderboardEntry) GetItemInput(tableName string) *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
-		TableName: aws.String(leaderboardTableName),
+		TableName: aws.String(tableName),
 		Key:       map[string]dynamodb.AttributeValue{"Contender": {S: aws.String(l.Contender)}},
 	}
 }
 
 // PutItemInput generates the dynamodb.PutItemInput for the given leaderboard entry
-func (l *LeaderboardEntry) PutItemInput() *dynamodb.PutItemInput {
+func (l *LeaderboardEntry) PutItemInput(tableName string) *dynamodb.PutItemInput {
 	return &dynamodb.PutItemInput{
-		TableName: aws.String(leaderboardTableName),
+		TableName: aws.String(tableName),
 		Item:      l.Marshal(),
 	}
 }
 
 // DeleteItemInput generates the dynamodb.DeleteItemInput for the given leaderboard entry
-func (l *LeaderboardEntry) DeleteItemInput() *dynamodb.DeleteItemInput {
+func (l *LeaderboardEntry) DeleteItemInput(tableName string) *dynamodb.DeleteItemInput {
 	return &dynamodb.DeleteItemInput{
-		TableName: aws.String(leaderboardTableName),
+		TableName: aws.String(tableName),
 		Key:       map[string]dynamodb.AttributeValue{"Contender": {S: aws.String(l.Contender)}},
 	}
 }
 
 // UpdateItemInput generates the dynamodb.UpdateItemInput for the given leaderboard entry
-func (l *LeaderboardEntry) UpdateItemInput() *dynamodb.UpdateItemInput {
+func (l *LeaderboardEntry) UpdateItemInput(tableName string) *dynamodb.UpdateItemInput {
 	if l.entrantLost {
-		return leaderboardLossInput(l.Contender)
+		return leaderboardLossInput(l.Contender, tableName)
 	}
-	return leaderboardWinInput(l.Contender)
+	return leaderboardWinInput(l.Contender, tableName)
 }
 
-func leaderboardWinInput(name string) *dynamodb.UpdateItemInput {
+func leaderboardWinInput(name, tableName string) *dynamodb.UpdateItemInput {
 	return &dynamodb.UpdateItemInput{
-		TableName:                 aws.String(leaderboardTableName),
+		TableName:                 aws.String(tableName),
 		Key:                       map[string]dynamodb.AttributeValue{"Contender": {S: aws.String(name)}},
 		UpdateExpression:          aws.String("ADD Wins :w ADD Score :w"),
 		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{"w": {N: aws.String("1")}},
 	}
 }
 
-func leaderboardLossInput(name string) *dynamodb.UpdateItemInput {
+func leaderboardLossInput(name, tableName string) *dynamodb.UpdateItemInput {
 	return &dynamodb.UpdateItemInput{
-		TableName:                 aws.String(leaderboardTableName),
+		TableName:                 aws.String(tableName),
 		Key:                       map[string]dynamodb.AttributeValue{"Contender": {S: aws.String(name)}},
 		UpdateExpression:          aws.String("ADD Score :l"),
 		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{"l": {N: aws.String("-1")}},

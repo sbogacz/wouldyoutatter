@@ -2,6 +2,7 @@ package contender
 
 import (
 	"context"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/satori/go.uuid"
@@ -14,6 +15,7 @@ type Token struct {
 	ID         string
 	Contender1 string
 	Contender2 string
+	ExpireAt   int64
 }
 
 // TokenStore gives us some nicer typed access to the DB
@@ -40,6 +42,7 @@ func (s *TokenStore) CreateToken(ctx context.Context, contender1, contender2 str
 		ID:         uid.String(),
 		Contender1: contender1,
 		Contender2: contender2,
+		ExpireAt:   time.Now().Add(time.Hour * 24).Unix(),
 	}
 	if err := s.db.Set(ctx, t); err != nil {
 		return nil, errors.Wrap(err, "failed to create token")

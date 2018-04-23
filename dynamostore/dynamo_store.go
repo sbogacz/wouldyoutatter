@@ -26,7 +26,7 @@ var _ Storer = (*dynamoStore)(nil)
 
 // New takes a reference to a DynamoDB instance
 // and returns the dynamo-backed version of the store
-func New(c *TableConfig, d *dynamodb.DynamoDB) Storer {
+func New(d *dynamodb.DynamoDB, c *TableConfig) Storer {
 	return &dynamoStore{
 		c:      c,
 		dynamo: d,
@@ -50,9 +50,11 @@ func (s *dynamoStore) Set(ctx context.Context, item Item) error {
 	}
 
 	s.lock.RLock()
-	input := item.PutItemInput()
+	input := item.PutItemInput(s.c.TableName)
 	req := s.dynamo.PutItemRequest(input)
-
+	//if s.c.TableName == "Tokens" {
+	//	log.WithField("input", input).Info("WHY")
+	//}
 	if _, err := req.Send(); err != nil {
 		s.lock.RUnlock()
 		if createTableErr := s.createTableOnError(ctx, item, err); createTableErr != nil {
@@ -76,7 +78,7 @@ func (s *dynamoStore) Get(ctx context.Context, item Item) (Item, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	input := item.GetItemInput()
+	input := item.GetItemInput(s.c.TableName)
 	req := s.dynamo.GetItemRequest(input)
 	output, err := req.Send()
 	if err != nil {
@@ -101,7 +103,7 @@ func (s *dynamoStore) Update(ctx context.Context, item Item) error {
 	}
 
 	s.lock.RLock()
-	input := item.UpdateItemInput()
+	input := item.UpdateItemInput(s.c.TableName)
 	req := s.dynamo.UpdateItemRequest(input)
 
 	if _, err := req.Send(); err != nil {
@@ -124,7 +126,7 @@ func (s *dynamoStore) Delete(ctx context.Context, item Item) error {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	input := item.DeleteItemInput()
+	input := item.DeleteItemInput(s.c.TableName)
 	req := s.dynamo.DeleteItemRequest(input)
 
 	if _, err := req.Send(); err != nil {
@@ -138,7 +140,7 @@ func (s *dynamoStore) Scan(ctx context.Context, items Scannable) error {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
-	input := items.ScanInput()
+	input := items.ScanInput(s.c.TableName)
 	req := s.dynamo.ScanRequest(input)
 	output, err := req.Send()
 	if err != nil {
@@ -163,7 +165,7 @@ func (s *dynamoStore) createTableOnError(ctx context.Context, item Item, err err
 	}
 
 	log.Debug("going to wait")
-	describeInput := item.DescribeTableInput()
+	describeInput := item.DescribeTableInput(s.c.TableName)
 	if err := s.dynamo.WaitUntilTableExistsWithContext(ctx, describeInput); err != nil {
 		log.WithError(err).Errorf("table for %s was not created in time", item.Key())
 		return errors.Wrap(err, "table was not created in time")

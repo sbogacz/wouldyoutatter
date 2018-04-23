@@ -61,7 +61,7 @@ func (c *Contender) Unmarshal(aMap map[string]dynamodb.AttributeValue) error {
 }
 
 // CreateTableInput generates the dynamo input to create the contenders table
-func (c *Contender) CreateTableInput(tc dynamostore.TableConfig) *dynamodb.CreateTableInput {
+func (c *Contender) CreateTableInput(tc *dynamostore.TableConfig) *dynamodb.CreateTableInput {
 	return &dynamodb.CreateTableInput{
 		AttributeDefinitions: []dynamodb.AttributeDefinition{
 			{
@@ -84,60 +84,90 @@ func (c *Contender) CreateTableInput(tc dynamostore.TableConfig) *dynamodb.Creat
 }
 
 // DescribeTableInput generates the query we need to describe the contender table
-func (c *Contender) DescribeTableInput() *dynamodb.DescribeTableInput {
+func (c *Contender) DescribeTableInput(tableName string) *dynamodb.DescribeTableInput {
 	return &dynamodb.DescribeTableInput{
-		TableName: aws.String(contenderTableName),
+		TableName: aws.String(tableName),
 	}
 }
 
+// UpdateTimeToLiveInput is a no-op for the contender table
+func (c *Contender) UpdateTimeToLiveInput(tableName string) *dynamodb.UpdateTimeToLiveInput {
+	return nil
+}
+
 // GetItemInput generates the dynamodb.GetItemInput for the given contender
-func (c *Contender) GetItemInput() *dynamodb.GetItemInput {
+func (c *Contender) GetItemInput(tableName string) *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
-		TableName: aws.String(contenderTableName),
+		TableName: aws.String(tableName),
 		Key:       map[string]dynamodb.AttributeValue{"Name": {S: aws.String(c.Name)}},
 	}
 }
 
 // PutItemInput generates the dynamodb.PutItemInput for the given contender
-func (c *Contender) PutItemInput() *dynamodb.PutItemInput {
+func (c *Contender) PutItemInput(tableName string) *dynamodb.PutItemInput {
 	return &dynamodb.PutItemInput{
-		TableName: aws.String(contenderTableName),
+		TableName: aws.String(tableName),
 		Item:      c.Marshal(),
 	}
 }
 
 // DeleteItemInput generates the dynamodb.DeleteItemInput for the given contender
-func (c *Contender) DeleteItemInput() *dynamodb.DeleteItemInput {
+func (c *Contender) DeleteItemInput(tableName string) *dynamodb.DeleteItemInput {
 	return &dynamodb.DeleteItemInput{
-		TableName: aws.String(contenderTableName),
+		TableName: aws.String(tableName),
 		Key:       map[string]dynamodb.AttributeValue{"Name": {S: aws.String(c.Name)}},
 	}
 }
 
 // UpdateItemInput generates the dynamodb.UpdateItemInput for the given contender
-func (c *Contender) UpdateItemInput() *dynamodb.UpdateItemInput {
+func (c *Contender) UpdateItemInput(tableName string) *dynamodb.UpdateItemInput {
 	if c.isLoser {
-		return lossInput(c.Name)
+		return lossInput(c.Name, tableName)
 	}
-	return winInput(c.Name)
+	return winInput(c.Name, tableName)
 }
 
-func winInput(name string) *dynamodb.UpdateItemInput {
+func winInput(name, tableName string) *dynamodb.UpdateItemInput {
 	return &dynamodb.UpdateItemInput{
-		TableName:                 aws.String(contenderTableName),
+		TableName:                 aws.String(tableName),
 		Key:                       map[string]dynamodb.AttributeValue{"Name": {S: aws.String(name)}},
 		UpdateExpression:          aws.String("ADD Wins :w"),
 		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{"w": {N: aws.String("1")}},
 	}
 }
 
-func lossInput(name string) *dynamodb.UpdateItemInput {
+func lossInput(name, tableName string) *dynamodb.UpdateItemInput {
 	return &dynamodb.UpdateItemInput{
-		TableName:                 aws.String(contenderTableName),
+		TableName:                 aws.String(tableName),
 		Key:                       map[string]dynamodb.AttributeValue{"Name": {S: aws.String(name)}},
 		UpdateExpression:          aws.String("ADD Losses :l"),
 		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{"l": {N: aws.String("1")}},
 	}
+}
+
+// ScanInput producest a dynamodb ScanInput object
+func (c *Contenders) ScanInput(tableName string) *dynamodb.ScanInput {
+	return &dynamodb.ScanInput{
+		TableName: aws.String(tableName),
+	}
+}
+
+// Unmarshal allows results to be unmarshalled directly into the struct
+func (c *Contenders) Unmarshal(maps []map[string]dynamodb.AttributeValue) error {
+	cs := make([]*Contender, len(maps))
+	for i := range cs {
+		cs[i] = &Contender{}
+		if err := cs[i].Unmarshal(maps[i]); err != nil {
+			return errors.Wrap(err, "failed to unmarshal Contenders")
+		}
+	}
+	contenders := make([]Contender, len(cs))
+	for i := range cs {
+		contenders[i] = *cs[i]
+	}
+	*c = contenders
+	return nil
+
 }
 
 func stringToAttributeValue(s string) dynamodb.AttributeValue {
@@ -145,6 +175,10 @@ func stringToAttributeValue(s string) dynamodb.AttributeValue {
 }
 
 func intToAttributeValue(n int) dynamodb.AttributeValue {
+	return dynamodb.AttributeValue{N: aws.String(fmt.Sprintf("%d", n))}
+}
+
+func int64ToAttributeValue(n int64) dynamodb.AttributeValue {
 	return dynamodb.AttributeValue{N: aws.String(fmt.Sprintf("%d", n))}
 }
 

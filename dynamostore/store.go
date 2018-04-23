@@ -10,12 +10,12 @@ import (
 // the Storer
 type Item interface {
 	Key() string
-	PutItemInput() *dynamodb.PutItemInput
-	GetItemInput() *dynamodb.GetItemInput
-	UpdateItemInput() *dynamodb.UpdateItemInput
-	DeleteItemInput() *dynamodb.DeleteItemInput
+	PutItemInput(string) *dynamodb.PutItemInput
+	GetItemInput(string) *dynamodb.GetItemInput
+	UpdateItemInput(string) *dynamodb.UpdateItemInput
+	DeleteItemInput(string) *dynamodb.DeleteItemInput
 	CreateTableInput(c *TableConfig) *dynamodb.CreateTableInput
-	DescribeTableInput() *dynamodb.DescribeTableInput
+	DescribeTableInput(string) *dynamodb.DescribeTableInput
 	UpdateTimeToLiveInput(string) *dynamodb.UpdateTimeToLiveInput
 	Marshal() map[string]dynamodb.AttributeValue
 	Unmarshal(map[string]dynamodb.AttributeValue) error
@@ -23,7 +23,7 @@ type Item interface {
 
 // Scannable is an interface for items whose tables can be scanned
 type Scannable interface {
-	ScanInput() *dynamodb.ScanInput
+	ScanInput(string) *dynamodb.ScanInput
 	Unmarshal([]map[string]dynamodb.AttributeValue) error
 }
 

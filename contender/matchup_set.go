@@ -3,6 +3,7 @@ package contender
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/sbogacz/wouldyoutatter/dynamostore"
@@ -16,10 +17,9 @@ const (
 
 // MatchupSet is one of the possible matchup combinations
 type MatchupSet struct {
-	ID        string
-	Set       []MatchupSetEntry
-	tableName string
-	entry     MatchupSetEntry
+	ID    string
+	Set   []MatchupSetEntry
+	entry MatchupSetEntry
 }
 
 // MatchupSetEntry holds a possible matchup combination
@@ -31,6 +31,15 @@ type MatchupSetEntry struct {
 
 func newMatchupSetEntry(c1, c2 string) MatchupSetEntry {
 	contender1, contender2 := OrderMatchup(c1, c2)
+	return MatchupSetEntry{
+		Contender1: contender1,
+		Contender2: contender2,
+	}
+}
+
+func matchupEntryfromString(s string) MatchupSetEntry {
+	contenders := strings.Split(s, "§")
+	contender1, contender2 := OrderMatchup(contenders[0], contenders[1])
 	return MatchupSetEntry{
 		Contender1: contender1,
 		Contender2: contender2,
@@ -60,9 +69,8 @@ func (s *MatchupSetStore) Add(ctx context.Context, uid, contender1, contender2 s
 	newEntry := newMatchupSetEntry(contender1, contender2)
 
 	matchupSet := &MatchupSet{
-		ID:        uid,
-		entry:     newEntry,
-		tableName: userMatchupSetTableName,
+		ID:    uid,
+		entry: newEntry,
 	}
 	if err := s.db.Update(ctx, matchupSet); err != nil {
 		return errors.Wrapf(err, "failed to update the matchup set for ID: %s", uid)
@@ -81,9 +89,8 @@ func (s *MatchupSetStore) Remove(ctx context.Context, uid, contender1, contender
 	}
 
 	matchupSet := &MatchupSet{
-		ID:        uid,
-		entry:     newMatchupEntry,
-		tableName: userMatchupSetTableName,
+		ID:    uid,
+		entry: newMatchupEntry,
 	}
 	if err := s.db.Update(ctx, matchupSet); err != nil {
 		return errors.Wrapf(err, "failed to update the matchup set for ID: %s", uid)
@@ -105,7 +112,7 @@ func (s *MatchupSetStore) Get(ctx context.Context, uid string) (*MatchupSet, err
 
 // Delete is used to restart a matchup set when it is no longer relevant
 func (s *MatchupSetStore) Delete(ctx context.Context, uid string) error {
-	if err := s.db.Delete(ctx, &MatchupSet{ID: uid, tableName: userMatchupSetTableName}); err != nil {
+	if err := s.db.Delete(ctx, &MatchupSet{ID: uid}); err != nil {
 		return errors.Wrap(err, "failed to delete matchup set")
 	}
 	return nil
@@ -126,14 +133,8 @@ func NewMasterMatchupSetStore(db dynamostore.Storer) *MasterMatchupSetStore {
 
 // Add given a uid corresponding to the session, and two contenders, adds them to the set
 // of matchups that uid has seen
-func (s *MasterMatchupSetStore) Add(ctx context.Context, contender1 string) error {
-	cs := []Contender{}
-	otherContenders := Contenders(cs)
-	if err := s.db.Scan(ctx, &otherContenders); err != nil {
-		return errors.Wrap(err, "failed to retrieve other contenders to populate Matchup Set")
-	}
-
-	for _, contender2 := range otherContenders {
+func (s *MasterMatchupSetStore) Add(ctx context.Context, contender1 string, otherContenders *Contenders) error {
+	for _, contender2 := range *otherContenders {
 		// don't create dupes
 		if contender1 == contender2.Name {
 			continue
@@ -145,9 +146,8 @@ func (s *MasterMatchupSetStore) Add(ctx context.Context, contender1 string) erro
 		}
 
 		matchupSet := &MatchupSet{
-			ID:        masterKey,
-			entry:     newMatchupEntry,
-			tableName: masterMatchupTableName,
+			ID:    masterKey,
+			entry: newMatchupEntry,
 		}
 		if err := s.db.Update(ctx, matchupSet); err != nil {
 			return errors.Wrapf(err, "failed to update the matchup set for ID: %s", masterKey)
@@ -159,14 +159,9 @@ func (s *MasterMatchupSetStore) Add(ctx context.Context, contender1 string) erro
 
 // Remove given a uid corresponding to the session, and two contenders, adds them to the set
 // of matchups that uid has seen
-func (s *MasterMatchupSetStore) Remove(ctx context.Context, contender1 string) error {
-	cs := []Contender{}
-	otherContenders := Contenders(cs)
-	if err := s.db.Scan(ctx, &otherContenders); err != nil {
-		return errors.Wrap(err, "failed to retrieve other contenders to populate Matchup Set")
-	}
+func (s *MasterMatchupSetStore) Remove(ctx context.Context, contender1 string, otherContenders *Contenders) error {
 
-	for _, contender2 := range otherContenders {
+	for _, contender2 := range *otherContenders {
 		// didn't create dupes
 		if contender1 == contender2.Name {
 			continue
@@ -179,9 +174,8 @@ func (s *MasterMatchupSetStore) Remove(ctx context.Context, contender1 string) e
 		}
 
 		matchupSet := &MatchupSet{
-			ID:        masterKey,
-			entry:     newMatchupEntry,
-			tableName: masterMatchupTableName,
+			ID:    masterKey,
+			entry: newMatchupEntry,
 		}
 		if err := s.db.Update(ctx, matchupSet); err != nil {
 			return errors.Wrapf(err, "failed to update the matchup set for ID: %s", masterKey)
