@@ -52,9 +52,7 @@ func (s *dynamoStore) Set(ctx context.Context, item Item) error {
 	s.lock.RLock()
 	input := item.PutItemInput(s.c.TableName)
 	req := s.dynamo.PutItemRequest(input)
-	//if s.c.TableName == "Tokens" {
-	//	log.WithField("input", input).Info("WHY")
-	//}
+
 	if _, err := req.Send(); err != nil {
 		s.lock.RUnlock()
 		if createTableErr := s.createTableOnError(ctx, item, err); createTableErr != nil {
