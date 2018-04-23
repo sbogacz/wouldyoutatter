@@ -89,7 +89,7 @@ func teardownTables(config service.Config) error {
 		service.DefaultMasterMatchupsTableName,
 		service.DefaultUserMatchupsTableName,
 		service.DefaultTokenTableName,
-		service.DefaultMatchupTableName,
+		//service.DefaultMatchupTableName,
 	}
 
 	for _, table := range tables {

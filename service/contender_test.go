@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 
@@ -110,20 +109,14 @@ func TestAddingSeveralContendersCreatesPossibleMatchups(t *testing.T) {
 
 	t.Run("as we ask for matchups, we should be able to see 6 different ones before looping", func(t *testing.T) {
 		var cookie *http.Cookie
-		previousMatchupURLs := []string{}
+		previousMatchups := []string{}
 		var sawRepeat bool
-		var matchupsSeen int
-
-		redirectClient := http.Client{}
-		redirectClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-			previousMatchupURLs = append(previousMatchupURLs, req.URL.String())
-			return nil
-		}
 
 		for {
 			if sawRepeat {
-				if matchupsSeen != 6 {
-					fmt.Println("saw a repeat without seeing every combination")
+				if len(previousMatchups) != 6 {
+					fmt.Printf("saw a repeat without seeing every combination %d\n", len(previousMatchups))
+					//time.Sleep(time.Minute)
 					require.True(t, false)
 				}
 				break
@@ -132,6 +125,7 @@ func TestAddingSeveralContendersCreatesPossibleMatchups(t *testing.T) {
 			require.NoError(t, err)
 			// if have cookie, set
 			if cookie != nil {
+				fmt.Printf("setting cookie %+v\n", cookie)
 				req.AddCookie(cookie)
 			}
 			resp, err := http.DefaultClient.Do(req)
@@ -147,13 +141,20 @@ func TestAddingSeveralContendersCreatesPossibleMatchups(t *testing.T) {
 				}
 			}
 
-			matchupURL := strings.Split(resp.Request.URL.String(), "?")[0]
-			fmt.Printf("matchup URL: %s\n\n", matchupURL)
-			if stringInSlice(matchupURL, previousMatchupURLs) {
+			matchup := &contender.MatchupSetEntry{}
+			d := json.NewDecoder(resp.Body)
+			err = d.Decode(matchup)
+			require.NoError(t, err)
+
+			resp.Body.Close()
+
+			fmt.Printf("matchup : %s\n\n", matchup)
+			if stringInSlice(matchup.String(), previousMatchups) {
+				fmt.Printf("matchup %s already in %+v\n", matchup, previousMatchups)
 				sawRepeat = true
+				continue
 			}
-			previousMatchupURLs = append(previousMatchupURLs, matchupURL)
-			matchupsSeen++
+			previousMatchups = append(previousMatchups, matchup.String())
 			time.Sleep(time.Millisecond * 200)
 		}
 		require.True(t, true)

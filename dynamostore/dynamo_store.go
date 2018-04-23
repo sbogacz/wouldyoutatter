@@ -177,9 +177,19 @@ func (s *dynamoStore) createTableOnError(ctx context.Context, item Item, err err
 	if updateInput != nil {
 		enableTTLReq := s.dynamo.UpdateTimeToLiveRequest(updateInput)
 		if _, err := enableTTLReq.Send(); err != nil {
-			log.WithError(err).Errorf("failed to enable TTL on %s", s.c.TableName)
-			return errors.Wrapf(err, "failed to enable TTL on %s", s.c.TableName)
+			log.WithError(err).Errorf("failed to enable TTL on %s, first try", s.c.TableName)
+			if _, err := enableTTLReq.Send(); err != nil {
+				log.WithError(err).Errorf("failed to enable TTL on %s, second try", s.c.TableName)
+				return errors.Wrapf(err, "failed to enable TTL on %s, second try", s.c.TableName)
+			}
 		}
+		log.Debug("going to wait to enable TTL")
+		describeInput := item.DescribeTableInput(s.c.TableName)
+		if err := s.dynamo.WaitUntilTableExistsWithContext(ctx, describeInput); err != nil {
+			log.WithError(err).Errorf("table for %s didn't have TTL enabled in time", item.Key())
+			return errors.Wrap(err, "TTL was not enabled in time")
+		}
+		log.Debug("done waiting for TTL to be enabeld")
 	}
 	return nil
 }

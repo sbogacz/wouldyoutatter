@@ -32,16 +32,10 @@ func (s *Service) chooseMatchup(w http.ResponseWriter, req *http.Request) {
 		} else {
 			userID = uid.String()
 		}
-		// put the token in the request since we redirect
-		req.AddCookie(&http.Cookie{
-			Name:  CookieKey,
-			Value: userID,
-			Path:  "/",
-		})
+		// put the token in the response
 		http.SetCookie(w, &http.Cookie{
 			Name:  CookieKey,
 			Value: userID,
-			Path:  "/",
 		})
 
 		newUser = true
@@ -49,7 +43,7 @@ func (s *Service) chooseMatchup(w http.ResponseWriter, req *http.Request) {
 		userID = userIDCookie.Value
 	}
 
-	log.WithField("userID", userID).Info("getting new matchup")
+	log.WithField("userID", userID).Debug("getting new matchup")
 	masterSet, err := s.masterMatchupSet.Get(context.TODO())
 	if err != nil {
 		http.Error(w, "failed to retrieve master matchup set", http.StatusInternalServerError)
@@ -103,7 +97,16 @@ func (s *Service) chooseMatchup(w http.ResponseWriter, req *http.Request) {
 
 	newURLBase := strings.Split(req.URL.String(), "/random")[0]
 	newURL := fmt.Sprintf("%s/%s/%s?token=%s", newURLBase, matchup.Contender1, matchup.Contender2, token.ID)
-	http.Redirect(w, req, newURL, http.StatusSeeOther)
+	matchup.VoteURL = newURL
+
+	b, err := json.Marshal(&matchup)
+	if err != nil {
+		http.Error(w, "failed to marshal response", http.StatusInternalServerError)
+		log.WithError(err).Error("failed to marshal matchup response")
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
 }
 
 func (s *Service) getMatchupStats(w http.ResponseWriter, req *http.Request) {
@@ -209,13 +212,19 @@ func chooseNewMatchup(possibleMatchups []contender.MatchupSetEntry, seenMatchups
 	// do it naively for now
 	for _, possibleMatchup := range possibleMatchups {
 
-		log.WithField("possible", possibleMatchup).Info("possible matchup")
+		log.WithField("possible", possibleMatchup).Debug("possible matchup")
+		var checkedMatchups int
 		for _, seenMatchup := range seenMatchups {
-			log.WithField("seen", seenMatchup).Info("seen matchup")
-			if seenMatchup.String() != possibleMatchup.String() {
-				return possibleMatchup
+			log.WithField("seen", seenMatchup).Debug("seen matchup")
+			if seenMatchup.String() == possibleMatchup.String() {
+				break
 			}
+			checkedMatchups++
 		}
+		if checkedMatchups != len(seenMatchups) {
+			continue
+		}
+		return possibleMatchup
 	}
 	return contender.MatchupSetEntry{}
 }
