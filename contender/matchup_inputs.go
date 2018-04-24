@@ -141,8 +141,8 @@ func (m *Matchup) contender1WinInput(tableName string) *dynamodb.UpdateItemInput
 			"Contender1": {S: aws.String(m.Contender1)},
 			"Contender2": {S: aws.String(m.Contender2)},
 		},
-		UpdateExpression:          aws.String("ADD Contender1Wins :w ADD Contender2Losses :w"),
-		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{"w": {N: aws.String("1")}},
+		UpdateExpression:          aws.String("ADD Contender1Wins :w, Contender2Losses :w"),
+		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{":w": {N: aws.String("1")}},
 	}
 }
 
@@ -153,7 +153,7 @@ func (m *Matchup) contender2WinInput(tableName string) *dynamodb.UpdateItemInput
 			"Contender1": {S: aws.String(m.Contender1)},
 			"Contender2": {S: aws.String(m.Contender2)},
 		},
-		UpdateExpression:          aws.String("ADD Contender2Wins :w ADD Contender1Losses :w"),
-		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{"w": {N: aws.String("1")}},
+		UpdateExpression:          aws.String("ADD Contender2Wins :w, Contender1Losses :w"),
+		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{":w": {N: aws.String("1")}},
 	}
 }

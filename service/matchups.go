@@ -96,7 +96,7 @@ func (s *Service) chooseMatchup(w http.ResponseWriter, req *http.Request) {
 	}
 
 	newURLBase := strings.Split(req.URL.String(), "/random")[0]
-	newURL := fmt.Sprintf("%s/%s/%s?token=%s", newURLBase, matchup.Contender1, matchup.Contender2, token.ID)
+	newURL := fmt.Sprintf("%s/%s/%s/vote?token=%s", newURLBase, matchup.Contender1, matchup.Contender2, token.ID)
 	matchup.VoteURL = newURL
 
 	b, err := json.Marshal(&matchup)
@@ -124,7 +124,6 @@ func (s *Service) getMatchupStats(w http.ResponseWriter, req *http.Request) {
 	userIDCookie, err := req.Cookie(CookieKey)
 	// if we saw an error, that's because the cookie wasn't found
 	if err == nil {
-		log.WithField("cookie", userIDCookie).Info("on the redirect")
 		// put the token in the request since we redirect
 		http.SetCookie(w, userIDCookie)
 	}
@@ -149,7 +148,7 @@ type votePayload struct {
 }
 
 func (s *Service) voteOnMatchup(w http.ResponseWriter, req *http.Request) {
-	contender1, contender2 := chi.URLParam(req, "contender1"), chi.URLParam(req, "contender2")
+	contender1, contender2 := chi.URLParam(req, "contenderID1"), chi.URLParam(req, "contenderID2")
 	if contender1 == "" {
 		http.Error(w, "contender1 cannot be empty in order to vote", http.StatusBadRequest)
 		return
@@ -185,7 +184,7 @@ func (s *Service) voteOnMatchup(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "couldn't decode vote payload", http.StatusBadRequest)
 		return
 	}
-	if v.Winner != contender1 || v.Winner != contender2 {
+	if v.Winner != contender1 && v.Winner != contender2 {
 		http.Error(w, "can only vote for a winner within the matchup", http.StatusBadRequest)
 		return
 	}
@@ -200,6 +199,33 @@ func (s *Service) voteOnMatchup(w http.ResponseWriter, req *http.Request) {
 		log.WithError(err).Error("failed to record vote in DB")
 		return
 	}
+
+	// update the contender table
+	if err := s.contenderStore.DeclareWinner(context.TODO(), v.Winner); err != nil {
+		http.Error(w, "failed to record vote", http.StatusInternalServerError)
+		log.WithError(err).Error("failed to update contender store with winner")
+		return
+	}
+
+	if err := s.contenderStore.DeclareLoser(context.TODO(), loser); err != nil {
+		http.Error(w, "failed to record vote", http.StatusInternalServerError)
+		log.WithError(err).Error("failed to update contender store with loser")
+		return
+	}
+
+	// update leaderboard
+	if err := s.leaderboard.UpdateWinningEntry(context.TODO(), v.Winner); err != nil {
+		http.Error(w, "failed to record vote", http.StatusInternalServerError)
+		log.WithError(err).Error("failed to update leaderboard with winner")
+		return
+	}
+
+	if err := s.leaderboard.UpdateLosingEntry(context.TODO(), loser); err != nil {
+		http.Error(w, "failed to record vote", http.StatusInternalServerError)
+		log.WithError(err).Error("failed to update leaderboard with loser")
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 }
 

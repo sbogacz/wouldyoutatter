@@ -132,7 +132,7 @@ func winInput(name, tableName string) *dynamodb.UpdateItemInput {
 		TableName:                 aws.String(tableName),
 		Key:                       map[string]dynamodb.AttributeValue{"Name": {S: aws.String(name)}},
 		UpdateExpression:          aws.String("ADD Wins :w"),
-		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{"w": {N: aws.String("1")}},
+		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{":w": {N: aws.String("1")}},
 	}
 }
 
@@ -141,7 +141,7 @@ func lossInput(name, tableName string) *dynamodb.UpdateItemInput {
 		TableName:                 aws.String(tableName),
 		Key:                       map[string]dynamodb.AttributeValue{"Name": {S: aws.String(name)}},
 		UpdateExpression:          aws.String("ADD Losses :l"),
-		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{"l": {N: aws.String("1")}},
+		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{":l": {N: aws.String("1")}},
 	}
 }
 
