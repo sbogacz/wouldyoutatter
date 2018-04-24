@@ -87,8 +87,8 @@ func (l *LeaderboardEntry) DescribeTableInput(tableName string) *dynamodb.Descri
 	}
 }
 
-// UpdateTimeToLiveInput is a no-op for the leaderboard
-func (l *LeaderboardEntry) UpdateTimeToLiveInput(tableName string) *dynamodb.UpdateTimeToLiveInput {
+// TableOptions is a no-op for the leaderboard table
+func (l *LeaderboardEntry) TableOptions(tableName string) []dynamostore.TableOption {
 	return nil
 }
 

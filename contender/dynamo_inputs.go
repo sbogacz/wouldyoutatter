@@ -90,8 +90,8 @@ func (c *Contender) DescribeTableInput(tableName string) *dynamodb.DescribeTable
 	}
 }
 
-// UpdateTimeToLiveInput is a no-op for the contender table
-func (c *Contender) UpdateTimeToLiveInput(tableName string) *dynamodb.UpdateTimeToLiveInput {
+// TableOptions is a no-op for the contender table (for now)
+func (c *Contender) TableOptions(tableName string) []dynamostore.TableOption {
 	return nil
 }
 

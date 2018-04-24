@@ -78,8 +78,8 @@ func (m *MatchupSet) DescribeTableInput(tableName string) *dynamodb.DescribeTabl
 	}
 }
 
-// UpdateTimeToLiveInput is a no-op for matchup sets
-func (m *MatchupSet) UpdateTimeToLiveInput(tableName string) *dynamodb.UpdateTimeToLiveInput {
+// TableOptions is a no-op for the matchup set table
+func (m *MatchupSet) TableOptions(tableName string) []dynamostore.TableOption {
 	return nil
 }
 
