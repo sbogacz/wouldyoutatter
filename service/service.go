@@ -65,6 +65,10 @@ func (s *Service) Start() {
 		})
 	})
 
+	// route the leaderboard
+	s.router.Route("/leaderboard", func(r chi.Router) {
+		r.Get("/", s.getLeaderboard)
+	})
 	h := &http.Server{
 		Addr:         fmt.Sprintf(":%d", s.config.Port),
 		ReadTimeout:  3 * time.Second,

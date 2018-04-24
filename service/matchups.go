@@ -194,6 +194,22 @@ func (s *Service) voteOnMatchup(w http.ResponseWriter, req *http.Request) {
 		loser = contender1
 	}
 	// so the token is valid, now VOTE!
+	// ... but first, get old score (we could do this in the store layer, but not
+	// without mucking up the interface even moreso
+	winnerOld, err := s.contenderStore.Get(context.TODO(), v.Winner)
+	if err != nil {
+		http.Error(w, "failed to record vote", http.StatusInternalServerError)
+		log.WithError(err).WithField("winner", contender1).Error("failed to get winner's old score from the DB")
+		return
+	}
+	loserOld, err := s.contenderStore.Get(context.TODO(), loser)
+	if err != nil {
+		http.Error(w, "failed to record vote", http.StatusInternalServerError)
+		log.WithError(err).WithField("loser", contender2).Error("failed to get loser's old score from the DB")
+		return
+	}
+
+	// now really, start voting
 	if err := s.matchupStore.ScoreMatchup(context.TODO(), v.Winner, loser); err != nil {
 		http.Error(w, "failed to record vote", http.StatusInternalServerError)
 		log.WithError(err).Error("failed to record vote in DB")
@@ -214,13 +230,13 @@ func (s *Service) voteOnMatchup(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// update leaderboard
-	if err := s.leaderboard.UpdateWinningEntry(context.TODO(), v.Winner); err != nil {
+	if err := s.leaderboard.UpdateWinningEntry(context.TODO(), v.Winner, winnerOld.Score); err != nil {
 		http.Error(w, "failed to record vote", http.StatusInternalServerError)
 		log.WithError(err).Error("failed to update leaderboard with winner")
 		return
 	}
 
-	if err := s.leaderboard.UpdateLosingEntry(context.TODO(), loser); err != nil {
+	if err := s.leaderboard.UpdateLosingEntry(context.TODO(), loser, loserOld.Score); err != nil {
 		http.Error(w, "failed to record vote", http.StatusInternalServerError)
 		log.WithError(err).Error("failed to update leaderboard with loser")
 		return

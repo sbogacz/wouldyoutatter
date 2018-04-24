@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	"github.com/sbogacz/wouldyoutatter/contender"
 	"github.com/sbogacz/wouldyoutatter/service"
@@ -89,13 +90,22 @@ func TestVotingAndLeaderboard(t *testing.T) {
 		require.True(t, true)
 	})
 
+	clientSideLeaderboard := make(map[string]int, len(contenders))
+	clientSideWins := make(map[string]int, len(contenders))
 	t.Run("loop through the matchup list and use the URL to vote", func(t *testing.T) {
 		for i, matchup := range matchups {
 			// for the first three, vote for the first contender
 			winner := matchup.Contender2
+			loser := matchup.Contender1
 			if i < 3 {
 				winner = matchup.Contender1
+				loser = matchup.Contender2
 			}
+			// update our client side leaderboard to use for later verification
+			clientSideLeaderboard[winner] = clientSideLeaderboard[winner] + 1
+			clientSideWins[winner] = clientSideWins[winner] + 1
+			clientSideLeaderboard[loser] = clientSideLeaderboard[loser] - 1
+
 			payload := votePayload{Winner: winner}
 			b, err := json.Marshal(&payload)
 			require.NoError(t, err)
@@ -110,7 +120,27 @@ func TestVotingAndLeaderboard(t *testing.T) {
 	})
 
 	t.Run("check the leaderboard", func(t *testing.T) {
+		resp, err := http.DefaultClient.Get(leaderboardAddress)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
+		leaderboard := contender.Leaderboard{}
+		d := json.NewDecoder(resp.Body)
+		err = d.Decode(&leaderboard)
+		require.NoError(t, err)
+
+		assert.Equal(t, len(clientSideLeaderboard), len(leaderboard))
+		// check that the leaderboard's scores match ours
+
+		fmt.Printf("%+v\n", clientSideLeaderboard)
+		fmt.Printf("%+v\n", clientSideWins)
+		time.Sleep(time.Minute)
+		for _, entry := range leaderboard {
+			fmt.Println("entry " + entry.Contender)
+			assert.Equal(t, clientSideLeaderboard[entry.Contender], entry.Score)
+			assert.Equal(t, clientSideWins[entry.Contender], entry.Wins)
+		}
 	})
 }
 

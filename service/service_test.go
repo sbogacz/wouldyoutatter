@@ -90,6 +90,7 @@ func teardownTables(config service.Config) error {
 		service.DefaultUserMatchupsTableName,
 		service.DefaultTokenTableName,
 		service.DefaultMatchupTableName,
+		service.DefaultLeaderboardTableName,
 	}
 
 	for _, table := range tables {

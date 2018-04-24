@@ -115,7 +115,6 @@ func TestAddingSeveralContendersCreatesPossibleMatchups(t *testing.T) {
 			if sawRepeat {
 				if len(previousMatchups) != 6 {
 					fmt.Printf("saw a repeat without seeing every combination %d\n", len(previousMatchups))
-					//time.Sleep(time.Minute)
 					require.True(t, false)
 				}
 				break
