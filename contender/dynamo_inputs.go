@@ -145,7 +145,7 @@ func lossInput(name, tableName string) *dynamodb.UpdateItemInput {
 	}
 }
 
-// ScanInput producest a dynamodb ScanInput object
+// ScanInput produces a dynamodb ScanInput object
 func (c *Contenders) ScanInput(tableName string) *dynamodb.ScanInput {
 	return &dynamodb.ScanInput{
 		TableName: aws.String(tableName),
