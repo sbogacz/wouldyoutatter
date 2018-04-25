@@ -2,6 +2,10 @@ data "aws_iam_policy" "AmazonDynamoDBFullAccess" {
   arn = "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
 }
 
+data "aws_iam_policy" "CloudWatchLogsFullAccess" {
+  arn = "arn:aws:iam::aws:policy/CloudWatchLogsFullAccess"
+}
+
 module "lambda" {
   source = "./lambda"
 
@@ -15,7 +19,7 @@ module "lambda" {
   executable_name = "${var.lambda_executable_name}"
 
   # Dynamo policy
-  attach_policies = ["${data.aws_iam_policy.AmazonDynamoDBFullAccess.arn}"]
+  attach_policies = ["${data.aws_iam_policy.AmazonDynamoDBFullAccess.arn}", "${data.aws_iam_policy.CloudWatchLogsFullAccess.arn}"]
 
   # Env variables
   env_vars = "${var.lambda_env_vars}"

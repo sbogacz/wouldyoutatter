@@ -1,17 +1,16 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/sbogacz/wouldyoutatter/service"
-	"github.com/urfave/cli"
+	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -35,29 +34,20 @@ func Handler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyRespo
 }
 
 func main() {
-	app := cli.NewApp()
-	app.Usage = "this is the CLI app version of wouldyoutatter"
-	app.Flags = config.Flags()
-	app.Action = serve
-
-	err := app.Run(os.Args)
-	if err != nil {
-		log.Fatalf("failed to start service with err: %v", err)
+	for _, f := range config.Flags() {
+		f.Apply(flag.CommandLine)
 	}
-}
-
-func serve(c *cli.Context) error {
 
 	var err error
 	s, err = service.New(*config)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
+	fmt.Printf("Listening on port: %d\n", config.Port)
 	go s.Start()
 	lambda.Start(Handler)
 
-	s.Stop()
-	return nil
+	//s.Stop()
 }
 
 // APIGWReqToHTTP converts APIGatewayProxyRequests and translates them to stdlib
@@ -71,6 +61,12 @@ func APIGWReqToHTTP(req events.APIGatewayProxyRequest) (*http.Request, error) {
 	for k, v := range req.Headers {
 		httpReq.Header.Set(k, v)
 	}
+	q := httpReq.URL.Query()
+	for k, v := range req.QueryStringParameters {
+		q.Set(k, v)
+	}
+	httpReq.URL.RawQuery = q.Encode()
+
 	return httpReq, nil
 }
 

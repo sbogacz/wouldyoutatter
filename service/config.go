@@ -2,7 +2,6 @@ package service
 
 import (
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/sbogacz/wouldyoutatter/dynamostore"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
@@ -105,18 +104,6 @@ func (c *Config) Flags() []cli.Flag {
 	ret = append(ret, c.MasterMatchupsTableConfig.Flags("master-matchups", DefaultMasterMatchupsTableName)...)
 	ret = append(ret, c.TokenTableConfig.Flags("token", DefaultTokenTableName)...)
 	return ret
-}
-
-// AWSConfig returns an aws Config based on the env vars/flags
-// provided
-func (c *Config) AWSConfig() (aws.Config, error) {
-	cfg, err := external.LoadDefaultAWSConfig()
-	if err != nil {
-		return aws.Config{}, err
-	}
-	cfg.Region = c.AWSRegion
-	cfg.Credentials = c
-	return cfg, nil
 }
 
 // Retrieve allows the Config to be used as an aws.Provider

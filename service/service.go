@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/go-chi/chi"
 	"github.com/pkg/errors"
@@ -33,6 +35,7 @@ type Service struct {
 func New(c Config) (*Service, error) {
 	// set log level
 	log.SetLevel(c.logLevelToLogrus())
+	log.SetOutput(os.Stdout)
 
 	ret := &Service{
 		config: c,
@@ -80,7 +83,6 @@ func (s *Service) Start() {
 		_ = h.Shutdown(context.Background())
 	}()
 
-	fmt.Printf("Listening on port: %d\n", s.config.Port)
 	if err := h.ListenAndServe(); err != nil {
 		if err != http.ErrServerClosed {
 			log.Fatal(err)
@@ -102,10 +104,11 @@ func (s *Service) configureStores() error {
 		s.masterMatchupSet = contender.NewMasterMatchupSetStore(storer)
 		s.tokenStore = contender.NewTokenStore(storer)
 	}
-	cfg, err := s.config.AWSConfig()
+	cfg, err := external.LoadDefaultAWSConfig()
 	if err != nil {
 		return err
 	}
+
 	// instantiate Storers with their respective table configs
 	contenderStorer := dynamostore.New(dynamodb.New(cfg), s.config.ContenderTableConfig)
 	matchupStorer := dynamostore.New(dynamodb.New(cfg), s.config.MatchupTableConfig)

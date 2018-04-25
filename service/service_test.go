@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/phayes/freeport"
 	"github.com/sbogacz/wouldyoutatter/service"
@@ -77,7 +78,7 @@ func setupService(config service.Config) error {
 }
 
 func teardownTables(config service.Config) error {
-	cfg, err := config.AWSConfig()
+	cfg, err := external.LoadDefaultAWSConfig()
 	if err != nil {
 		return err
 	}
