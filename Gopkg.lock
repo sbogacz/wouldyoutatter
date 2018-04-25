@@ -24,7 +24,6 @@
     "private/protocol/rest",
     "private/protocol/xml/xmlutil",
     "service/dynamodb",
-    "service/dynamodb/dynamodbattribute",
     "service/sts"
   ]
   revision = "3383499f1024e86a3c68200f9bdc6759ee20eb70"
@@ -72,12 +71,10 @@
   version = "v1.0.0"
 
 [[projects]]
+  branch = "master"
   name = "github.com/satori/go.uuid"
   packages = ["."]
-  branch = "master"
   revision = "36e9d2ebbde5e3f13ab2e25625fd453271d6522e"
-  #revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
-  #version = "v1.2.0"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -118,6 +115,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "2f19305f458d0e738ec03f09dac6e77b75f6781e90c719e04ce9f361ae308d02"
+  inputs-digest = "17eed3b56dbef0d8159a4af05e8bcc933107c0ee68e19584107e540b02234a17"
   solver-name = "gps-cdcl"
   solver-version = 1
