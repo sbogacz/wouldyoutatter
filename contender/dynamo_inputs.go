@@ -12,6 +12,10 @@ import (
 
 var _ dynamostore.Item = (*Contender)(nil)
 
+const (
+	leaderboardScoreIndex = "LeaderboardScore"
+)
+
 // Key returns the Contenders name, and implements the dynamostore Item interface
 func (c Contender) Key() string {
 	return c.Name
@@ -27,6 +31,7 @@ func (c Contender) Marshal() map[string]dynamodb.AttributeValue {
 		"Wins":        intToAttributeValue(c.Wins),
 		"Losses":      intToAttributeValue(c.Losses),
 		"Score":       intToAttributeValue(c.Score),
+		"Leaderboard": stringToAttributeValue("topscore"), // placeholder
 	}
 }
 
@@ -68,6 +73,14 @@ func (c *Contender) CreateTableInput(tc *dynamostore.TableConfig) *dynamodb.Crea
 				AttributeName: aws.String("Name"),
 				AttributeType: dynamodb.ScalarAttributeTypeS,
 			},
+			{
+				AttributeName: aws.String("Leaderboard"),
+				AttributeType: dynamodb.ScalarAttributeTypeS,
+			},
+			{
+				AttributeName: aws.String("Score"),
+				AttributeType: dynamodb.ScalarAttributeTypeN,
+			},
 		},
 		KeySchema: []dynamodb.KeySchemaElement{
 			{
@@ -79,6 +92,30 @@ func (c *Contender) CreateTableInput(tc *dynamostore.TableConfig) *dynamodb.Crea
 			ReadCapacityUnits:  aws.Int64(tc.ReadCapacity),
 			WriteCapacityUnits: aws.Int64(tc.WriteCapacity),
 		},
+		GlobalSecondaryIndexes: []dynamodb.GlobalSecondaryIndex{
+			{
+				IndexName: aws.String(leaderboardScoreIndex),
+				KeySchema: []dynamodb.KeySchemaElement{
+					{
+						// placeholder to allow us to sort our results by
+						AttributeName: aws.String("Leaderboard"),
+						KeyType:       dynamodb.KeyTypeHash,
+					},
+					{
+						AttributeName: aws.String("Score"),
+						KeyType:       dynamodb.KeyTypeRange,
+					},
+				},
+				ProvisionedThroughput: &dynamodb.ProvisionedThroughput{
+					ReadCapacityUnits:  aws.Int64(tc.ReadCapacity),
+					WriteCapacityUnits: aws.Int64(tc.WriteCapacity),
+				},
+				Projection: &dynamodb.Projection{
+					ProjectionType: dynamodb.ProjectionTypeAll,
+				},
+			},
+		},
+
 		TableName: aws.String(tc.TableName),
 	}
 }
@@ -131,17 +168,20 @@ func winInput(name, tableName string) *dynamodb.UpdateItemInput {
 	return &dynamodb.UpdateItemInput{
 		TableName:                 aws.String(tableName),
 		Key:                       map[string]dynamodb.AttributeValue{"Name": {S: aws.String(name)}},
-		UpdateExpression:          aws.String("ADD Wins :w"),
+		UpdateExpression:          aws.String("ADD Wins :w, Score :w"),
 		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{":w": {N: aws.String("1")}},
 	}
 }
 
 func lossInput(name, tableName string) *dynamodb.UpdateItemInput {
 	return &dynamodb.UpdateItemInput{
-		TableName:                 aws.String(tableName),
-		Key:                       map[string]dynamodb.AttributeValue{"Name": {S: aws.String(name)}},
-		UpdateExpression:          aws.String("ADD Losses :l"),
-		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{":l": {N: aws.String("1")}},
+		TableName:        aws.String(tableName),
+		Key:              map[string]dynamodb.AttributeValue{"Name": {S: aws.String(name)}},
+		UpdateExpression: aws.String("ADD Losses :l, Score :ls"),
+		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{
+			":l":  {N: aws.String("1")},
+			":ls": {N: aws.String("-1")},
+		},
 	}
 }
 
@@ -149,6 +189,19 @@ func lossInput(name, tableName string) *dynamodb.UpdateItemInput {
 func (c *Contenders) ScanInput(tableName string) *dynamodb.ScanInput {
 	return &dynamodb.ScanInput{
 		TableName: aws.String(tableName),
+	}
+}
+
+// QueryInput producest a dynamodb QueryInput object looking for the
+// top N contenders
+func (c *Contenders) QueryInput(tableName string, limit int) *dynamodb.QueryInput {
+	return &dynamodb.QueryInput{
+		TableName:                 aws.String(tableName),
+		IndexName:                 aws.String(leaderboardScoreIndex),
+		KeyConditionExpression:    aws.String("Leaderboard = :val"),
+		ExpressionAttributeValues: map[string]dynamodb.AttributeValue{":val": {S: aws.String("topscore")}},
+		Limit:            aws.Int64(int64(limit)),
+		ScanIndexForward: aws.Bool(false),
 	}
 }
 

@@ -39,7 +39,6 @@ func TestMain(m *testing.M) {
 	// override options for the test
 	config.Port = openPort
 	config.LogLevel = "INFO"
-
 	if *runAgainstLocalDynamo {
 		config.AWSRegion = "local"
 	}
@@ -90,7 +89,6 @@ func teardownTables(config service.Config) error {
 		service.DefaultUserMatchupsTableName,
 		service.DefaultTokenTableName,
 		service.DefaultMatchupTableName,
-		service.DefaultLeaderboardTableName,
 	}
 
 	for _, table := range tables {

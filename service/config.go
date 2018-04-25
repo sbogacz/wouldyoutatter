@@ -20,8 +20,6 @@ const (
 	DefaultContenderTableName = "Contenders"
 	// DefaultMatchupTableName is what it sounds like
 	DefaultMatchupTableName = "Matchups"
-	// DefaultLeaderboardTableName is what it sounds like
-	DefaultLeaderboardTableName = "Leaderboard"
 	// DefaultUserMatchupsTableName is what it sounds like
 	DefaultUserMatchupsTableName = "User-Past-Matchups"
 	// DefaultMasterMatchupsTableName is what it sounds like
@@ -46,7 +44,6 @@ type Config struct {
 	// Table Configs
 	ContenderTableConfig      *dynamostore.TableConfig
 	MatchupTableConfig        *dynamostore.TableConfig
-	LeaderboardTableConfig    *dynamostore.TableConfig
 	UserMatchupsTableConfig   *dynamostore.TableConfig
 	MasterMatchupsTableConfig *dynamostore.TableConfig
 	TokenTableConfig          *dynamostore.TableConfig
@@ -98,14 +95,12 @@ func (c *Config) Flags() []cli.Flag {
 	// initialize configs
 	c.ContenderTableConfig = &dynamostore.TableConfig{}
 	c.MatchupTableConfig = &dynamostore.TableConfig{}
-	c.LeaderboardTableConfig = &dynamostore.TableConfig{}
 	c.UserMatchupsTableConfig = &dynamostore.TableConfig{}
 	c.MasterMatchupsTableConfig = &dynamostore.TableConfig{}
 	c.TokenTableConfig = &dynamostore.TableConfig{}
 
 	ret = append(ret, c.ContenderTableConfig.Flags("contender", DefaultContenderTableName)...)
 	ret = append(ret, c.MatchupTableConfig.Flags("matchup", DefaultMatchupTableName)...)
-	ret = append(ret, c.LeaderboardTableConfig.Flags("leaderboard", DefaultLeaderboardTableName)...)
 	ret = append(ret, c.UserMatchupsTableConfig.Flags("user-matchups", DefaultUserMatchupsTableName)...)
 	ret = append(ret, c.MasterMatchupsTableConfig.Flags("master-matchups", DefaultMasterMatchupsTableName)...)
 	ret = append(ret, c.TokenTableConfig.Flags("token", DefaultTokenTableName)...)

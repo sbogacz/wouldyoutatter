@@ -2,11 +2,11 @@ package service_test
 
 import (
 	"bytes"
+	"container/heap"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/sbogacz/wouldyoutatter/contender"
 	"github.com/sbogacz/wouldyoutatter/service"
@@ -125,21 +125,45 @@ func TestVotingAndLeaderboard(t *testing.T) {
 		require.NotNil(t, resp)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 
-		leaderboard := contender.Leaderboard{}
+		dbLeaderboard := contender.Contenders{}
 		d := json.NewDecoder(resp.Body)
-		err = d.Decode(&leaderboard)
+		err = d.Decode(&dbLeaderboard)
 		require.NoError(t, err)
 
-		assert.Equal(t, len(clientSideLeaderboard), len(leaderboard))
+		assert.Equal(t, len(clientSideLeaderboard), len(dbLeaderboard))
 		// check that the leaderboard's scores match ours
 
-		fmt.Printf("%+v\n", clientSideLeaderboard)
-		fmt.Printf("%+v\n", clientSideWins)
-		time.Sleep(time.Minute)
-		for _, entry := range leaderboard {
-			fmt.Println("entry " + entry.Contender)
-			assert.Equal(t, clientSideLeaderboard[entry.Contender], entry.Score)
-			assert.Equal(t, clientSideWins[entry.Contender], entry.Wins)
+		for _, c := range dbLeaderboard {
+			assert.Equal(t, clientSideLeaderboard[c.Name], c.Score)
+			assert.Equal(t, clientSideWins[c.Name], c.Wins)
+		}
+	})
+
+	t.Run("check the leaderboard top 3", func(t *testing.T) {
+		// first create our local top 3
+		localLeaderboard := &leaderboard{}
+		heap.Init(localLeaderboard)
+		for k, v := range clientSideLeaderboard {
+			heap.Push(localLeaderboard, entry{name: k, score: v})
+		}
+
+		resp, err := http.DefaultClient.Get(fmt.Sprintf("%s?limit=3", leaderboardAddress))
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		top3 := contender.Contenders{}
+		d := json.NewDecoder(resp.Body)
+		err = d.Decode(&top3)
+		require.NoError(t, err)
+
+		assert.Equal(t, 3, len(top3))
+
+		// check that the leaderboard's top 3scores match ours
+		for _, c := range top3 {
+			localEntry := heap.Pop(localLeaderboard).(entry)
+			assert.Equal(t, localEntry.name, c.Name)
+			assert.Equal(t, localEntry.score, c.Score)
 		}
 	})
 }
@@ -155,4 +179,29 @@ func matchupInSlice(m *contender.MatchupSetEntry, arr []contender.MatchupSetEntr
 		}
 	}
 	return false
+}
+
+type entry struct {
+	score int
+	name  string
+}
+
+type leaderboard []entry
+
+func (l leaderboard) Len() int           { return len(l) }
+func (l leaderboard) Less(i, j int) bool { return l[i].score > l[j].score }
+func (l leaderboard) Swap(i, j int)      { l[i], l[j] = l[j], l[i] }
+
+func (l *leaderboard) Push(x interface{}) {
+	// Push and Pop use pointer receivers because they modify the shice's hength,
+	// not just its contents.
+	*l = append(*l, x.(entry))
+}
+
+func (l *leaderboard) Pop() interface{} {
+	old := *l
+	n := len(old)
+	x := old[n-1]
+	*l = old[0 : n-1]
+	return x
 }

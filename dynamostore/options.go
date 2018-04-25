@@ -1,6 +1,7 @@
 package dynamostore
 
 import (
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 )
 
@@ -26,14 +27,18 @@ func (u *updateTTLReq) Send(db *dynamodb.DynamoDB) error {
 	return err
 }
 
-/*type createGSIReq struct {
-	input *dynamodb.CreateGlobalSecondaryIndexInput
+type createGSIReq struct {
+	gsiUpdates []dynamodb.GlobalSecondaryIndexUpdate
+	tableName  string
 }
 
-// NewGSIOption takes a CreateGlobalSecondaryIndexInput and creates a TableOption
+// NewGSIOption takes a set of GSI updates and creates a TableOption
 // that can be used in the lazy creation of tables
-func NewGSIOption(input *dynamodb.CreateGlobalSecondaryIndexInput) TableOption {
-	return &createGSIReq{input: input}
+func NewGSIOption(gsiUpdates []dynamodb.GlobalSecondaryIndexUpdate, tableName string) TableOption {
+	return &createGSIReq{
+		gsiUpdates: gsiUpdates,
+		tableName:  tableName,
+	}
 }
 
 // Name describes the TTL table option
@@ -43,7 +48,11 @@ func (c *createGSIReq) Name() string {
 
 // Send allows the GSI option to be applied against dynamo
 func (c *createGSIReq) Send(db *dynamodb.DynamoDB) error {
-	req := db.CreateGlobalSecondaryIndexRequest(u.input)
+	input := &dynamodb.UpdateTableInput{
+		TableName:                   aws.String(c.tableName),
+		GlobalSecondaryIndexUpdates: c.gsiUpdates,
+	}
+	req := db.UpdateTableRequest(input)
 	_, err := req.Send()
 	return err
-}*/
+}

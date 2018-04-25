@@ -28,6 +28,12 @@ type TableOption interface {
 	Name() string
 }
 
+// Queryable is an interface for items whose tables can be queried
+type Queryable interface {
+	QueryInput(string, int) *dynamodb.QueryInput
+	Unmarshal([]map[string]dynamodb.AttributeValue) error
+}
+
 // Scannable is an interface for items whose tables can be scanned
 type Scannable interface {
 	ScanInput(string) *dynamodb.ScanInput
@@ -41,4 +47,5 @@ type Storer interface {
 	Update(context.Context, Item) error
 	Delete(context.Context, Item) error
 	Scan(context.Context, Scannable) error
+	Query(context.Context, Queryable, int) error
 }
