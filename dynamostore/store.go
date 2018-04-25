@@ -16,9 +16,22 @@ type Item interface {
 	DeleteItemInput(string) *dynamodb.DeleteItemInput
 	CreateTableInput(c *TableConfig) *dynamodb.CreateTableInput
 	DescribeTableInput(string) *dynamodb.DescribeTableInput
-	UpdateTimeToLiveInput(string) *dynamodb.UpdateTimeToLiveInput
+	TableOptions(string) []TableOption
 	Marshal() map[string]dynamodb.AttributeValue
 	Unmarshal(map[string]dynamodb.AttributeValue) error
+}
+
+// TableOption is an interface to specify requests that occur post-table
+// creation, e.g. TTL enabling, or GSI creation
+type TableOption interface {
+	Send(db *dynamodb.DynamoDB) error
+	Name() string
+}
+
+// Queryable is an interface for items whose tables can be queried
+type Queryable interface {
+	QueryInput(string, int) *dynamodb.QueryInput
+	Unmarshal([]map[string]dynamodb.AttributeValue) error
 }
 
 // Scannable is an interface for items whose tables can be scanned
@@ -34,4 +47,5 @@ type Storer interface {
 	Update(context.Context, Item) error
 	Delete(context.Context, Item) error
 	Scan(context.Context, Scannable) error
+	Query(context.Context, Queryable, int) error
 }

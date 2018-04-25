@@ -148,6 +148,21 @@ func (s *dynamoStore) Scan(ctx context.Context, items Scannable) error {
 	return items.Unmarshal(output.Items)
 }
 
+// Query takes a scannable and tries to query against DynamoDB
+func (s *dynamoStore) Query(ctx context.Context, items Queryable, limit int) error {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
+
+	input := items.QueryInput(s.c.TableName, limit)
+	req := s.dynamo.QueryRequest(input)
+	output, err := req.Send()
+	if err != nil {
+		return errors.Wrap(err, "failed to send Query request")
+	}
+
+	return items.Unmarshal(output.Items)
+}
+
 func (s *dynamoStore) createTableOnError(ctx context.Context, item Item, err error) error {
 	if !TableNotFoundError(err) {
 		log.WithError(err).Errorf("argh")
@@ -170,24 +185,25 @@ func (s *dynamoStore) createTableOnError(ctx context.Context, item Item, err err
 	}
 	log.Debug("done waiting")
 
-	// enable TTL is so configured
-	updateInput := item.UpdateTimeToLiveInput(s.c.TableName)
-	if updateInput != nil {
-		enableTTLReq := s.dynamo.UpdateTimeToLiveRequest(updateInput)
-		if _, err := enableTTLReq.Send(); err != nil {
-			log.WithError(err).Errorf("failed to enable TTL on %s, first try", s.c.TableName)
-			if _, err := enableTTLReq.Send(); err != nil {
-				log.WithError(err).Errorf("failed to enable TTL on %s, second try", s.c.TableName)
-				return errors.Wrapf(err, "failed to enable TTL on %s, second try", s.c.TableName)
-			}
+	var hadOpts bool
+	// loop through table options we have
+	for _, tableOption := range item.TableOptions(s.c.TableName) {
+		if optionErr := tableOption.Send(s.dynamo); optionErr != nil {
+			log.WithError(optionErr).Errorf("failed to apply table option %s to table %s", tableOption.Name(), s.c.TableName)
+			return errors.Wrapf(optionErr, "failed to apply table option %s to table %s", tableOption.Name(), s.c.TableName)
 		}
-		log.Debug("going to wait to enable TTL")
+		hadOpts = true
+	}
+	// if we made any table updates, wait again just in case the change takes time to propagate
+	if hadOpts {
+		log.Debug("going to wait")
 		describeInput := item.DescribeTableInput(s.c.TableName)
 		if err := s.dynamo.WaitUntilTableExistsWithContext(ctx, describeInput); err != nil {
-			log.WithError(err).Errorf("table for %s didn't have TTL enabled in time", item.Key())
-			return errors.Wrap(err, "TTL was not enabled in time")
+			log.WithError(err).Errorf("table for %s was not created in time", item.Key())
+			return errors.Wrap(err, "table was not created in time")
 		}
-		log.Debug("done waiting for TTL to be enabeld")
+		log.Debug("done waiting")
 	}
+
 	return nil
 }

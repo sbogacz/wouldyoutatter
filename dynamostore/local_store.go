@@ -77,3 +77,18 @@ func (s *localStore) Scan(ctx context.Context, items Scannable) error {
 	}
 	return items.Unmarshal(allItems)
 }
+
+func (s *localStore) Query(ctx context.Context, items Queryable, limit int) error {
+	s.l.RLock()
+	defer s.l.RUnlock()
+
+	allItems := make([]map[string]dynamodb.AttributeValue, 0, limit)
+	var i int
+	for _, v := range s.items {
+		if i == limit {
+			break
+		}
+		allItems = append(allItems, v.Marshal())
+	}
+	return items.Unmarshal(allItems)
+}

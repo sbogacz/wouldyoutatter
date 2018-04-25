@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/sbogacz/wouldyoutatter/contender"
 	"github.com/sbogacz/wouldyoutatter/service"
@@ -116,7 +115,6 @@ func TestAddingSeveralContendersCreatesPossibleMatchups(t *testing.T) {
 			if sawRepeat {
 				if len(previousMatchups) != 6 {
 					fmt.Printf("saw a repeat without seeing every combination %d\n", len(previousMatchups))
-					//time.Sleep(time.Minute)
 					require.True(t, false)
 				}
 				break
@@ -125,7 +123,6 @@ func TestAddingSeveralContendersCreatesPossibleMatchups(t *testing.T) {
 			require.NoError(t, err)
 			// if have cookie, set
 			if cookie != nil {
-				fmt.Printf("setting cookie %+v\n", cookie)
 				req.AddCookie(cookie)
 			}
 			resp, err := http.DefaultClient.Do(req)
@@ -133,7 +130,6 @@ func TestAddingSeveralContendersCreatesPossibleMatchups(t *testing.T) {
 			assert.Equal(t, http.StatusOK, resp.StatusCode)
 			// if we didn't have a cookie, set it from the response
 			if cookie == nil {
-				fmt.Printf("what's in cookies %+v\n", resp.Cookies())
 				for _, c := range resp.Cookies() {
 					if c.Name == service.CookieKey {
 						cookie = c
@@ -148,14 +144,11 @@ func TestAddingSeveralContendersCreatesPossibleMatchups(t *testing.T) {
 
 			resp.Body.Close()
 
-			fmt.Printf("matchup : %s\n\n", matchup)
 			if stringInSlice(matchup.String(), previousMatchups) {
-				fmt.Printf("matchup %s already in %+v\n", matchup, previousMatchups)
 				sawRepeat = true
 				continue
 			}
 			previousMatchups = append(previousMatchups, matchup.String())
-			time.Sleep(time.Millisecond * 200)
 		}
 		require.True(t, true)
 

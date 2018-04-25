@@ -92,7 +92,17 @@ func (s *Store) GetAll(ctx context.Context) (*Contenders, error) {
 	cs := []Contender{}
 	otherContenders := Contenders(cs)
 	if err := s.db.Scan(ctx, &otherContenders); err != nil {
-		return nil, errors.Wrap(err, "failed to retrieve other contenders to populate Matchup Set")
+		return nil, errors.Wrap(err, "failed to get all contenders")
 	}
 	return &otherContenders, nil
+}
+
+// GetLeaderboard lets you retrieve the top N contenders
+func (s *Store) GetLeaderboard(ctx context.Context, limit int) (*Contenders, error) {
+	cs := []Contender{}
+	leaderboard := Contenders(cs)
+	if err := s.db.Query(ctx, &leaderboard, limit); err != nil {
+		return nil, errors.Wrap(err, "failed to query for leaderboard")
+	}
+	return &leaderboard, nil
 }

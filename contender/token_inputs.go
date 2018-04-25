@@ -69,17 +69,6 @@ func (t *Token) DescribeTableInput(tableName string) *dynamodb.DescribeTableInpu
 	}
 }
 
-// UpdateTimeToLiveInput generates the input in order to set TTL on the token table
-func (t *Token) UpdateTimeToLiveInput(tableName string) *dynamodb.UpdateTimeToLiveInput {
-	return &dynamodb.UpdateTimeToLiveInput{
-		TableName: aws.String(tableName),
-		TimeToLiveSpecification: &dynamodb.TimeToLiveSpecification{
-			AttributeName: aws.String("ExpireAt"),
-			Enabled:       aws.Bool(true),
-		},
-	}
-}
-
 // GetItemInput generates the dynamodb.GetItemInput for the given token
 func (t *Token) GetItemInput(tableName string) *dynamodb.GetItemInput {
 	return &dynamodb.GetItemInput{
@@ -111,4 +100,21 @@ func (t *Token) DeleteItemInput(tableName string) *dynamodb.DeleteItemInput {
 // UpdateItemInput is a no-op, since we don't update the token
 func (t *Token) UpdateItemInput(tableName string) *dynamodb.UpdateItemInput {
 	return nil
+}
+
+// TableOptions returns the TTL table option the token store needs
+func (t *Token) TableOptions(tableName string) []dynamostore.TableOption {
+	input := t.updateTimeToLiveInput(tableName)
+	return []dynamostore.TableOption{dynamostore.NewTTLOption(input)}
+}
+
+// updateTimeToLiveInput generates the input in order to set TTL on the token table
+func (t *Token) updateTimeToLiveInput(tableName string) *dynamodb.UpdateTimeToLiveInput {
+	return &dynamodb.UpdateTimeToLiveInput{
+		TableName: aws.String(tableName),
+		TimeToLiveSpecification: &dynamodb.TimeToLiveSpecification{
+			AttributeName: aws.String("ExpireAt"),
+			Enabled:       aws.Bool(true),
+		},
+	}
 }

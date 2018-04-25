@@ -21,7 +21,6 @@ type Service struct {
 	config           Config
 	contenderStore   *contender.Store
 	matchupStore     *contender.MatchupStore
-	leaderboard      *contender.LeaderboardStore
 	userMatchupSet   *contender.MatchupSetStore
 	masterMatchupSet *contender.MasterMatchupSetStore
 	tokenStore       *contender.TokenStore
@@ -65,6 +64,10 @@ func (s *Service) Start() {
 		})
 	})
 
+	// route the leaderboard
+	s.router.Route("/leaderboard", func(r chi.Router) {
+		r.Get("/", s.getLeaderboard)
+	})
 	h := &http.Server{
 		Addr:         fmt.Sprintf(":%d", s.config.Port),
 		ReadTimeout:  3 * time.Second,
@@ -95,7 +98,6 @@ func (s *Service) configureStores() error {
 		storer := dynamostore.NewInMemoryStore()
 		s.contenderStore = contender.NewStore(storer)
 		s.matchupStore = contender.NewMatchupStore(storer)
-		s.leaderboard = contender.NewLeaderboardStore(storer)
 		s.userMatchupSet = contender.NewMatchupSetStore(storer)
 		s.masterMatchupSet = contender.NewMasterMatchupSetStore(storer)
 		s.tokenStore = contender.NewTokenStore(storer)
@@ -107,7 +109,6 @@ func (s *Service) configureStores() error {
 	// instantiate Storers with their respective table configs
 	contenderStorer := dynamostore.New(dynamodb.New(cfg), s.config.ContenderTableConfig)
 	matchupStorer := dynamostore.New(dynamodb.New(cfg), s.config.MatchupTableConfig)
-	leaderboardStorer := dynamostore.New(dynamodb.New(cfg), s.config.LeaderboardTableConfig)
 	userMatchupSetStorer := dynamostore.New(dynamodb.New(cfg), s.config.UserMatchupsTableConfig)
 	masterMatchupSetStorer := dynamostore.New(dynamodb.New(cfg), s.config.MasterMatchupsTableConfig)
 	tokenStorer := dynamostore.New(dynamodb.New(cfg), s.config.TokenTableConfig)
@@ -115,7 +116,6 @@ func (s *Service) configureStores() error {
 	// instantiate the respective stoers we need
 	s.contenderStore = contender.NewStore(contenderStorer)
 	s.matchupStore = contender.NewMatchupStore(matchupStorer)
-	s.leaderboard = contender.NewLeaderboardStore(leaderboardStorer)
 	s.userMatchupSet = contender.NewMatchupSetStore(userMatchupSetStorer)
 	s.masterMatchupSet = contender.NewMasterMatchupSetStore(masterMatchupSetStorer)
 	s.tokenStore = contender.NewTokenStore(tokenStorer)
