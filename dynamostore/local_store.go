@@ -13,6 +13,8 @@ type localStore struct {
 	items map[string]Item
 }
 
+var _ Storer = (*dynamoStore)(nil)
+
 // NewInMemoryStore returns a local map backed instance of a Storer
 func NewInMemoryStore() Storer {
 	return &localStore{
@@ -63,4 +65,15 @@ func (s *localStore) Delete(ctx context.Context, item Item) error {
 	delete(s.items, item.Key())
 	s.l.Unlock()
 	return nil
+}
+
+func (s *localStore) Scan(ctx context.Context, items Scannable) error {
+	s.l.RLock()
+	defer s.l.RUnlock()
+
+	allItems := make([]map[string]dynamodb.AttributeValue, 0, len(s.items))
+	for _, v := range s.items {
+		allItems = append(allItems, v.Marshal())
+	}
+	return items.Unmarshal(allItems)
 }

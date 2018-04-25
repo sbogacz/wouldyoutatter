@@ -2,13 +2,13 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/go-chi/chi"
+	"github.com/pkg/errors"
 	"github.com/sbogacz/wouldyoutatter/contender"
 	"github.com/sbogacz/wouldyoutatter/dynamostore"
 
@@ -18,47 +18,57 @@ import (
 // Service holds the necessary clients to run the wouldyoutatter
 // service
 type Service struct {
-	config         Config
-	contenderStore *contender.Store
-	router         *chi.Mux
-	cancel         chan struct{}
+	config           Config
+	contenderStore   *contender.Store
+	matchupStore     *contender.MatchupStore
+	leaderboard      *contender.LeaderboardStore
+	userMatchupSet   *contender.MatchupSetStore
+	masterMatchupSet *contender.MasterMatchupSetStore
+	tokenStore       *contender.TokenStore
+
+	router *chi.Mux
+	cancel chan struct{}
 }
 
 // New tries to cerate a new instance of Service
 func New(c Config) (*Service, error) {
-	var storer dynamostore.Storer
-	if c.AWSRegion == "" {
-		storer = dynamostore.NewInMemoryStore()
-	} else {
-		cfg, err := c.AWSConfig()
-		if err != nil {
-			return nil, err
-		}
-		storer = dynamostore.New(dynamodb.New(cfg))
-	}
+	// set log level
+	log.SetLevel(c.logLevelToLogrus())
 
-	return &Service{
-		config:         c,
-		contenderStore: contender.NewStore(storer),
-		router:         chi.NewRouter(),
-		cancel:         make(chan struct{}),
-	}, nil
+	ret := &Service{
+		config: c,
+		router: chi.NewRouter(),
+		cancel: make(chan struct{}),
+	}
+	if err := ret.configureStores(); err != nil {
+		return nil, errors.Wrap(err, "failed to configure necessary stores")
+	}
+	return ret, nil
 }
 
 // Start starts the server
 func (s *Service) Start() {
+	// route the contenders endpoints
 	s.router.Route("/contenders", func(r chi.Router) {
-		r.Post("/", s.createContender)
+		r.With(s.checkMasterKey).Post("/", s.createContender)
 		r.Route("/{contenderID}", func(r chi.Router) {
 			r.Get("/", s.getContender)
-			r.Delete("/", s.deleteContender)
+			r.With(s.checkMasterKey).Delete("/", s.deleteContender)
+		})
+	})
+	// route the matchups endpoints
+	s.router.Route("/matchups", func(r chi.Router) {
+		r.Get("/random", s.chooseMatchup)
+		r.Route("/{contenderID1}/{contenderID2}", func(r chi.Router) {
+			r.Get("/", s.getMatchupStats)
+			r.Post("/vote", s.voteOnMatchup)
 		})
 	})
 
 	h := &http.Server{
 		Addr:         fmt.Sprintf(":%d", s.config.Port),
-		ReadTimeout:  time.Second,
-		WriteTimeout: time.Second,
+		ReadTimeout:  3 * time.Second,
+		WriteTimeout: 3 * time.Second,
 		Handler:      s.router,
 	}
 
@@ -80,65 +90,34 @@ func (s *Service) Stop() {
 	s.cancel <- struct{}{}
 }
 
-func (s *Service) createContender(w http.ResponseWriter, req *http.Request) {
-	d := json.NewDecoder(req.Body)
-	defer req.Body.Close()
-
-	c := &contender.Contender{}
-	if err := d.Decode(c); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte("failed to decode payload"))
-		log.Errorf("failed to decode payload: %v", err)
-		return
+func (s *Service) configureStores() error {
+	if s.config.AWSRegion == "" {
+		storer := dynamostore.NewInMemoryStore()
+		s.contenderStore = contender.NewStore(storer)
+		s.matchupStore = contender.NewMatchupStore(storer)
+		s.leaderboard = contender.NewLeaderboardStore(storer)
+		s.userMatchupSet = contender.NewMatchupSetStore(storer)
+		s.masterMatchupSet = contender.NewMasterMatchupSetStore(storer)
+		s.tokenStore = contender.NewTokenStore(storer)
 	}
-
-	if err := s.contenderStore.Set(context.Background(), c); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("failed to store contender"))
-		log.Errorf("failed to store contender: %v", err)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-}
-
-func (s *Service) getContender(w http.ResponseWriter, req *http.Request) {
-	contenderID := chi.URLParam(req, "contenderID")
-
-	c, err := s.contenderStore.Get(context.Background(), contenderID)
+	cfg, err := s.config.AWSConfig()
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("failed to store contender"))
-		log.Errorf("failed to store contender: %v", err)
-		return
+		return err
 	}
+	// instantiate Storers with their respective table configs
+	contenderStorer := dynamostore.New(dynamodb.New(cfg), s.config.ContenderTableConfig)
+	matchupStorer := dynamostore.New(dynamodb.New(cfg), s.config.MatchupTableConfig)
+	leaderboardStorer := dynamostore.New(dynamodb.New(cfg), s.config.LeaderboardTableConfig)
+	userMatchupSetStorer := dynamostore.New(dynamodb.New(cfg), s.config.UserMatchupsTableConfig)
+	masterMatchupSetStorer := dynamostore.New(dynamodb.New(cfg), s.config.MasterMatchupsTableConfig)
+	tokenStorer := dynamostore.New(dynamodb.New(cfg), s.config.TokenTableConfig)
 
-	if c == nil {
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(fmt.Sprintf("no contender found with id: %s", contenderID)))
-		return
-	}
-
-	b, err := json.Marshal(c)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("failed to encode contender"))
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("content-type", "application/json")
-	w.Write(b)
-}
-
-func (s *Service) deleteContender(w http.ResponseWriter, req *http.Request) {
-	contenderID := chi.URLParam(req, "contenderID")
-
-	if err := s.contenderStore.Delete(context.Background(), contenderID); err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("failed to delete contender"))
-		log.Errorf("failed to delete contender: %v", err)
-		return
-	}
-
-	w.WriteHeader(http.StatusNoContent)
+	// instantiate the respective stoers we need
+	s.contenderStore = contender.NewStore(contenderStorer)
+	s.matchupStore = contender.NewMatchupStore(matchupStorer)
+	s.leaderboard = contender.NewLeaderboardStore(leaderboardStorer)
+	s.userMatchupSet = contender.NewMatchupSetStore(userMatchupSetStorer)
+	s.masterMatchupSet = contender.NewMasterMatchupSetStore(masterMatchupSetStorer)
+	s.tokenStore = contender.NewTokenStore(tokenStorer)
+	return nil
 }

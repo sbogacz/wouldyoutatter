@@ -10,11 +10,21 @@ import (
 // the Storer
 type Item interface {
 	Key() string
-	PutItemInput() *dynamodb.PutItemInput
-	GetItemInput() *dynamodb.GetItemInput
-	UpdateItemInput() *dynamodb.UpdateItemInput
-	DeleteItemInput() *dynamodb.DeleteItemInput
+	PutItemInput(string) *dynamodb.PutItemInput
+	GetItemInput(string) *dynamodb.GetItemInput
+	UpdateItemInput(string) *dynamodb.UpdateItemInput
+	DeleteItemInput(string) *dynamodb.DeleteItemInput
+	CreateTableInput(c *TableConfig) *dynamodb.CreateTableInput
+	DescribeTableInput(string) *dynamodb.DescribeTableInput
+	UpdateTimeToLiveInput(string) *dynamodb.UpdateTimeToLiveInput
+	Marshal() map[string]dynamodb.AttributeValue
 	Unmarshal(map[string]dynamodb.AttributeValue) error
+}
+
+// Scannable is an interface for items whose tables can be scanned
+type Scannable interface {
+	ScanInput(string) *dynamodb.ScanInput
+	Unmarshal([]map[string]dynamodb.AttributeValue) error
 }
 
 // Storer is the interface to the K/V retrieval of Contenders
@@ -23,4 +33,5 @@ type Storer interface {
 	Get(context.Context, Item) (Item, error)
 	Update(context.Context, Item) error
 	Delete(context.Context, Item) error
+	Scan(context.Context, Scannable) error
 }

@@ -18,6 +18,9 @@ type Contender struct {
 	isLoser     bool
 }
 
+// Contenders is a collection that implements Scannable
+type Contenders []Contender
+
 // NewWinner creates a new "winning" contender
 func NewWinner(name string) *Contender {
 	return &Contender{
@@ -56,9 +59,6 @@ func (s *Store) Get(ctx context.Context, name string) (*Contender, error) {
 	c := &Contender{Name: name}
 	item, err := s.db.Get(ctx, c)
 	if err != nil {
-		if dynamostore.NotFoundError(err) {
-			return nil, nil
-		}
 		return nil, errors.Wrap(err, "failed to retrieve contender")
 
 	}
@@ -87,11 +87,12 @@ func (s *Store) DeclareLoser(ctx context.Context, name string) error {
 	return errors.Wrapf(s.db.Update(ctx, loser), "failed to declare contender %s the loser", name)
 }
 
-// Matchup is the model for the head-to-head records
-// between contenders
-type Matchup struct {
-	Contender1     string
-	Contender2     string
-	Contender1Wins int
-	Contender2Wins int
+// GetAll lets you retrieve all of the current contenders
+func (s *Store) GetAll(ctx context.Context) (*Contenders, error) {
+	cs := []Contender{}
+	otherContenders := Contenders(cs)
+	if err := s.db.Scan(ctx, &otherContenders); err != nil {
+		return nil, errors.Wrap(err, "failed to retrieve other contenders to populate Matchup Set")
+	}
+	return &otherContenders, nil
 }
