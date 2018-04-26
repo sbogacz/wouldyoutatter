@@ -43,11 +43,11 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	fmt.Printf("Listening on port: %d\n", config.Port)
 	go s.Start()
-	lambda.Start(Handler)
 
-	//s.Stop()
+	lambda.Start(Handler)
 }
 
 // APIGWReqToHTTP converts APIGatewayProxyRequests and translates them to stdlib
