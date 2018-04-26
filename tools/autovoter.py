@@ -15,11 +15,11 @@ def main():
 
     jar = requests.cookies.RequestsCookieJar()
 
-    for _ in range(100):
+    for _ in range(10):
 
         # Get a random matchup. Uses the cookie jar to keep track of matchups
         # that have been seen. A browser would handle this for us.
-        r = requests.get(ENDPOINT + '/matchups/random', cookies=jar)
+        r = requests.get(f'{ENDPOINT}/matchups/random', cookies=jar)
         matchup = r.json()
 
         # Biased auto-voter
@@ -37,15 +37,15 @@ def main():
                 winner = 'contender_2'
 
         vote = {'Winner': matchup[winner]['name']}
-        print("Vote Payload: {}".format(vote))
+        print(f"Vote Payload: {vote}")
 
-        r = requests.post(ENDPOINT + matchup['vote_url'], json=vote, cookies=jar)
+        r = requests.post(f"{ENDPOINT}{matchup['vote_url']}", json=vote, cookies=jar)
 
     print("\nCurrent leaderboard:")
-    r = requests.get(ENDPOINT + '/leaderboard?limit=10')
+    r = requests.get(f'{ENDPOINT}/leaderboard?limit=10')
     leaders = r.json()
-    for leader in leaders:
-        print("{}: Score: {} Wins: {} Losses: {}".format(leader['name'], leader['score'], leader['wins'], leader['losses']))
+    for l in leaders:
+        print(f"{l['name']}: Score: {l['score']} Wins: {l['wins']} Losses: {l['losses']}")
 
 
 if __name__ == '__main__':
