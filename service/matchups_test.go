@@ -42,7 +42,7 @@ func TestVotingAndLeaderboard(t *testing.T) {
 		}
 	})
 	// we'll popuulate this set in the next step to be used in the voting step
-	matchups := []contender.MatchupSetEntry{}
+	matchups := []service.MatchupResp{}
 
 	t.Run("as we ask for matchups, we should be able to see 6 different ones before looping", func(t *testing.T) {
 		var cookie *http.Cookie
@@ -74,12 +74,18 @@ func TestVotingAndLeaderboard(t *testing.T) {
 				}
 			}
 
-			matchup := &contender.MatchupSetEntry{}
+			matchup := &service.MatchupResp{}
 			d := json.NewDecoder(resp.Body)
 			err = d.Decode(matchup)
 			require.NoError(t, err)
 
 			resp.Body.Close()
+
+			// check the SVG is included
+			assert.NotEmpty(t, matchup.Contender1)
+			assert.NotEmpty(t, matchup.Contender2)
+			assert.NotEmpty(t, matchup.Contender1.SVG)
+			assert.NotEmpty(t, matchup.Contender2.SVG)
 
 			if matchupInSlice(matchup, matchups) {
 				sawRepeat = true
@@ -95,18 +101,18 @@ func TestVotingAndLeaderboard(t *testing.T) {
 	t.Run("loop through the matchup list and use the URL to vote", func(t *testing.T) {
 		for i, matchup := range matchups {
 			// for the first three, vote for the first contender
-			winner := matchup.Contender2
-			loser := matchup.Contender1
+			winner := matchup.Contender2.Name
+			loser := matchup.Contender1.Name
 			if i < 3 {
-				winner = matchup.Contender1
-				loser = matchup.Contender2
+				winner = matchup.Contender1.Name
+				loser = matchup.Contender2.Name
 			}
 			// update our client side leaderboard to use for later verification
 			clientSideLeaderboard[winner] = clientSideLeaderboard[winner] + 1
 			clientSideWins[winner] = clientSideWins[winner] + 1
 			clientSideLeaderboard[loser] = clientSideLeaderboard[loser] - 1
 
-			payload := votePayload{Winner: winner}
+			payload := service.VotePayload{Winner: winner}
 			b, err := json.Marshal(&payload)
 			require.NoError(t, err)
 
@@ -162,23 +168,27 @@ func TestVotingAndLeaderboard(t *testing.T) {
 		// check that the leaderboard's top 3scores match ours
 		for _, c := range top3 {
 			localEntry := heap.Pop(localLeaderboard).(entry)
-			assert.Equal(t, localEntry.name, c.Name)
+			// check if scores are equal first, because we can get ordering
+			// discrepancies otherwise
 			assert.Equal(t, localEntry.score, c.Score)
+			// make sure score matches against the map
+			assert.Equal(t, clientSideLeaderboard[c.Name], c.Score)
 		}
 	})
 }
 
-type votePayload struct {
-	Winner string
-}
-
-func matchupInSlice(m *contender.MatchupSetEntry, arr []contender.MatchupSetEntry) bool {
+func matchupInSlice(m *service.MatchupResp, arr []service.MatchupResp) bool {
 	for _, matchup := range arr {
-		if m.String() == matchup.String() {
+		if matchupRespToString(*m) == matchupRespToString(matchup) {
 			return true
 		}
 	}
 	return false
+}
+
+func matchupRespToString(m service.MatchupResp) string {
+	c1, c2 := contender.OrderMatchup(m.Contender1.Name, m.Contender2.Name)
+	return fmt.Sprintf("%s§%s", c1, c2)
 }
 
 type entry struct {
