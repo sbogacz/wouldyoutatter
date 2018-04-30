@@ -2,6 +2,17 @@
 
 
 [[projects]]
+  name = "github.com/aws/aws-lambda-go"
+  packages = [
+    "events",
+    "lambda",
+    "lambda/messages",
+    "lambdacontext"
+  ]
+  revision = "fafa7e49388b8991caf99308e80655ba91816b72"
+  version = "v1.1.0"
+
+[[projects]]
   name = "github.com/aws/aws-sdk-go-v2"
   packages = [
     "aws",
@@ -40,6 +51,12 @@
   packages = ["."]
   revision = "e83ac2304db3c50cf03d96a2fcd39009d458bc35"
   version = "v3.3.2"
+
+[[projects]]
+  name = "github.com/go-chi/cors"
+  packages = ["."]
+  revision = "dba6525398619dead495962a916728e7ee2ca322"
+  version = "v1.0.0"
 
 [[projects]]
   name = "github.com/go-ini/ini"
@@ -115,6 +132,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "17eed3b56dbef0d8159a4af05e8bcc933107c0ee68e19584107e540b02234a17"
+  inputs-digest = "5d121efa188c6713bd85c84b199152f6d3328e16e7b370c7029ad1879ac4d618"
   solver-name = "gps-cdcl"
   solver-version = 1
