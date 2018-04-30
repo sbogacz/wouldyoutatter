@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/go-chi/chi"
+	"github.com/go-chi/cors"
 	"github.com/pkg/errors"
 	"github.com/sbogacz/wouldyoutatter/contender"
 	"github.com/sbogacz/wouldyoutatter/dynamostore"
@@ -45,6 +46,17 @@ func New(c Config) (*Service, error) {
 	if err := ret.configureStores(); err != nil {
 		return nil, errors.Wrap(err, "failed to configure necessary stores")
 	}
+	// Set up very permissive CORS headers. Real use would want to
+	// restrict AllowedOrigins for security.
+	corsMiddleware := cors.New(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300, // Maximum value not ignored by browsers
+	})
+	ret.router.Use(corsMiddleware.Handler)
+
 	return ret, nil
 }
 
