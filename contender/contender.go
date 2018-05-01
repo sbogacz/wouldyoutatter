@@ -9,12 +9,12 @@ import (
 
 // Contender is the model for the tattoo options
 type Contender struct {
-	Name        string
-	Description string
-	SVG         []byte
-	Wins        int
-	Losses      int
-	Score       int
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	SVG         []byte `json:"svg"`
+	Wins        int    `json:"wins"`
+	Losses      int    `json:"losses"`
+	Score       int    `json:"score"`
 	isLoser     bool
 }
 
