@@ -51,8 +51,27 @@ variable "lambda_executable_name" {
   description = "filename of the executable file for the lambda function to deploy"
 }
 
+variable "lambda_timeout" {
+  default     = 3
+  description = "how long you want the lambda to run before it times out"
+}
+
 variable "lambda_env_vars" {
   type        = "map"
   description = "a map of the environment variables you want your lambda to have access to at runtime"
   default     = {}
+}
+
+/**********************************************
+ * Tracing config
+ **********************************************/
+variable "enable_xray" {
+  default     = false
+  description = "set to true if you want the lambda to operate in the Active tracing mode"
+}
+
+variable "tracing_mode" {
+  type        = "string"
+  default     = "PassThrough"
+  description = "the tracing mode to use with X-Ray. Either PassThrough or Active. Note that the Lambda will require X-Ray write permissions separately if set to Active"
 }

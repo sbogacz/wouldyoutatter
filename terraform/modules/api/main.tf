@@ -17,9 +17,14 @@ module "lambda" {
   function_name   = "${var.lambda_function_name}"
   filepath        = "${var.lambda_function_filepath}"
   executable_name = "${var.lambda_executable_name}"
+  timeout         = "${var.lambda_timeout}"
 
   # Dynamo policy
   attach_policies = ["${data.aws_iam_policy.AmazonDynamoDBFullAccess.arn}", "${data.aws_iam_policy.CloudWatchLogsFullAccess.arn}"]
+
+  # X-Ray
+  enable_xray  = "${var.enable_xray}"
+  tracing_mode = "${var.tracing_mode}"
 
   # Env variables
   env_vars = "${var.lambda_env_vars}"

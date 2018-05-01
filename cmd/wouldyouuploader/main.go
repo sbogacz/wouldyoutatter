@@ -69,9 +69,9 @@ func upload(c *cli.Context) error {
 			return err
 		}
 		if resp.StatusCode != http.StatusCreated {
+			log.Printf("Got back status of %d\n", resp.StatusCode)
 			return errors.New("No status created code")
 		}
-		// log.Printf("Got back status of %d\n", resp.StatusCode)
 	}
 	return nil
 }

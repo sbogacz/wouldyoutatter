@@ -95,6 +95,20 @@ func (c *Config) Flags() []cli.Flag {
 			Destination: &c.LogLevel,
 			Value:       DefaultLogLevel,
 		},
+		cli.DurationFlag{
+			Name:        "api-read-timeout",
+			EnvVar:      "API_READ_TIMEOUT",
+			Usage:       "the server's HTTP read timeout",
+			Destination: &c.APIReadTimeout,
+			Value:       time.Second * 30,
+		},
+		cli.DurationFlag{
+			Name:        "api-write-timeout",
+			EnvVar:      "API_WRITE_TIMEOUT",
+			Usage:       "the server's HTTP write timeout",
+			Destination: &c.APIWriteTimeout,
+			Value:       time.Second * 30,
+		},
 	}
 	// initialize configs
 	c.ContenderTableConfig = &dynamostore.TableConfig{}

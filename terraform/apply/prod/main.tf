@@ -34,10 +34,19 @@ module "api" {
   lambda_function_name     = "wouldyoutatter"
   lambda_executable_name   = "wouldyoutatter"
   lambda_function_filepath = "${local.filepath}"
+  lambda_timeout           = 15
 
   lambda_env_vars = {
-    contender_table = "contenders"
+    MASTER_KEY                      = "redacted"
+    CONTENDERS_TABLE_READ_CAPACITY  = 10
+    CONTENDERS_TABLE_WRITE_CAPACITY = 10
+
+    POSSIBLE_MATCHUPS_TABLE_READ_CAPACITY  = 10
+    POSSIBLE_MATCHUPS_TABLE_WRITE_CAPACITY = 10
   }
+
+  enable_xray  = true
+  tracing_mode = "Active"
 }
 
 module "website" {

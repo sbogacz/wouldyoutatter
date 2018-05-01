@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -85,8 +84,8 @@ func (s *Service) Start() {
 	})
 	h := &http.Server{
 		Addr:         fmt.Sprintf(":%d", s.config.Port),
-		ReadTimeout:  3 * time.Second,
-		WriteTimeout: 3 * time.Second,
+		ReadTimeout:  s.config.APIReadTimeout,
+		WriteTimeout: s.config.APIWriteTimeout,
 		Handler:      s.router,
 	}
 
