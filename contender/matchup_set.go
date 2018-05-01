@@ -26,7 +26,6 @@ type MatchupSet struct {
 type MatchupSetEntry struct {
 	Contender1 string
 	Contender2 string
-	VoteURL    string // we don't record this in the DB, but we use it in the API
 	remove     bool
 }
 

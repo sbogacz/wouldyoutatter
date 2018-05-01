@@ -20,6 +20,19 @@ const (
 	CookieKey = "wouldyoutatterID"
 )
 
+// MatchupResp is the response we'll use for our matchups/random endpoint
+type MatchupResp struct {
+	Contender1 contender.Contender `json:"contender_1"`
+	Contender2 contender.Contender `json:"contender_2"`
+	VoteURL    string              `json:"vote_url"` // we don't record this in the DB, but we use it in the API
+	remove     bool
+}
+
+// VotePayload is the struct of the expected payload on vote POSTs
+type VotePayload struct {
+	Winner string `json:"winner"`
+}
+
 func (s *Service) chooseMatchup(w http.ResponseWriter, req *http.Request) {
 	userIDCookie, err := req.Cookie(CookieKey)
 	var userID string
@@ -90,6 +103,21 @@ func (s *Service) chooseMatchup(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// get the rest of the contender's data for the client
+	contender1, err := s.contenderStore.Get(context.TODO(), matchup.Contender1)
+	if err != nil {
+		log.WithError(err).Error("failed to retrieve contender1 data for matchup")
+		http.Error(w, "failed to retrieve matchup", http.StatusInternalServerError)
+		return
+	}
+
+	contender2, err := s.contenderStore.Get(context.TODO(), matchup.Contender2)
+	if err != nil {
+		log.WithError(err).Error("failed to retrieve contender2 data for matchup")
+		http.Error(w, "failed to retrieve matchup", http.StatusInternalServerError)
+		return
+	}
+
 	// mark this matchup as shown to the user
 	if err := s.userMatchupSet.Add(context.TODO(), userID, matchup.Contender1, matchup.Contender2); err != nil {
 		log.WithError(err).Error("failed to record seen matchup")
@@ -97,9 +125,14 @@ func (s *Service) chooseMatchup(w http.ResponseWriter, req *http.Request) {
 
 	newURLBase := strings.Split(req.URL.String(), "/random")[0]
 	newURL := fmt.Sprintf("%s/%s/%s/vote?token=%s", newURLBase, matchup.Contender1, matchup.Contender2, token.ID)
-	matchup.VoteURL = newURL
 
-	b, err := json.Marshal(&matchup)
+	resp := &MatchupResp{
+		Contender1: *contender1,
+		Contender2: *contender2,
+		VoteURL:    newURL,
+	}
+
+	b, err := json.Marshal(&resp)
 	if err != nil {
 		http.Error(w, "failed to marshal response", http.StatusInternalServerError)
 		log.WithError(err).Error("failed to marshal matchup response")
@@ -143,10 +176,6 @@ func (s *Service) getMatchupStats(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-type votePayload struct {
-	Winner string
-}
-
 func (s *Service) voteOnMatchup(w http.ResponseWriter, req *http.Request) {
 	contender1, contender2 := chi.URLParam(req, "contenderID1"), chi.URLParam(req, "contenderID2")
 	if contender1 == "" {
@@ -176,7 +205,7 @@ func (s *Service) voteOnMatchup(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	v := votePayload{}
+	v := VotePayload{}
 	d := json.NewDecoder(req.Body)
 	defer req.Body.Close()
 

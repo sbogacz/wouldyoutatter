@@ -137,18 +137,18 @@ func TestAddingSeveralContendersCreatesPossibleMatchups(t *testing.T) {
 				}
 			}
 
-			matchup := &contender.MatchupSetEntry{}
+			matchup := &service.MatchupResp{}
 			d := json.NewDecoder(resp.Body)
 			err = d.Decode(matchup)
 			require.NoError(t, err)
 
 			resp.Body.Close()
 
-			if stringInSlice(matchup.String(), previousMatchups) {
+			if stringInSlice(matchupRespToString(*matchup), previousMatchups) {
 				sawRepeat = true
 				continue
 			}
-			previousMatchups = append(previousMatchups, matchup.String())
+			previousMatchups = append(previousMatchups, matchupRespToString(*matchup))
 		}
 		require.True(t, true)
 
