@@ -1,6 +1,8 @@
 package service
 
 import (
+	"time"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/sbogacz/wouldyoutatter/dynamostore"
 	log "github.com/sirupsen/logrus"
@@ -34,12 +36,15 @@ var (
 // Config holds the service variables we want to
 // to configure from the cli/env
 type Config struct {
-	Port           int
-	AWSAccessKeyID string
-	AWSSecretKey   string
-	AWSRegion      string
-	MasterKey      string
-	LogLevel       string
+	Port            int
+	AWSAccessKeyID  string
+	AWSSecretKey    string
+	AWSRegion       string
+	MasterKey       string
+	LogLevel        string
+	APIReadTimeout  time.Duration
+	APIWriteTimeout time.Duration
+
 	// Table Configs
 	ContenderTableConfig      *dynamostore.TableConfig
 	MatchupTableConfig        *dynamostore.TableConfig
