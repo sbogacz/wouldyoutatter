@@ -67,5 +67,7 @@ module "website" {
 
   error_page = "index.html"
 
+  acm_certificate_arn = "arn:aws:acm:us-east-1:136629216070:certificate/b19e588a-0be1-464d-8f7c-589cfd4814c4"
+
   force_destroy = true
 }
