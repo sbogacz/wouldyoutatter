@@ -34,10 +34,19 @@ module "api" {
   lambda_function_name     = "wouldyoutatter"
   lambda_executable_name   = "wouldyoutatter"
   lambda_function_filepath = "${local.filepath}"
+  lambda_timeout           = 15
 
   lambda_env_vars = {
-    contender_table = "contenders"
+    MASTER_KEY                      = "redacted"
+    CONTENDERS_TABLE_READ_CAPACITY  = 10
+    CONTENDERS_TABLE_WRITE_CAPACITY = 10
+
+    POSSIBLE_MATCHUPS_TABLE_READ_CAPACITY  = 10
+    POSSIBLE_MATCHUPS_TABLE_WRITE_CAPACITY = 10
   }
+
+  enable_xray  = true
+  tracing_mode = "Active"
 }
 
 module "website" {
@@ -55,6 +64,10 @@ module "website" {
 
   enable_replication     = true
   replication_aws_region = "us-east-2"
+
+  error_page = "index.html"
+
+  acm_certificate_arn = "arn:aws:acm:us-east-1:136629216070:certificate/b19e588a-0be1-464d-8f7c-589cfd4814c4"
 
   force_destroy = true
 }
