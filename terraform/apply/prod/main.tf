@@ -65,5 +65,7 @@ module "website" {
   enable_replication     = true
   replication_aws_region = "us-east-2"
 
+  error_page = "index.html"
+
   force_destroy = true
 }

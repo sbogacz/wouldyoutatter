@@ -251,8 +251,15 @@ func chooseNewMatchup(possibleMatchups []contender.MatchupSetEntry, seenMatchups
 		rand.Seed(time.Now().Unix()) // initialize global pseudo random generator
 		return possibleMatchups[rand.Intn(len(possibleMatchups))]
 	}
-	// do it naively for now
-	for _, possibleMatchup := range possibleMatchups {
+
+	// if we've seen some, shuffle
+	shuffledMatchups := make([]contender.MatchupSetEntry, len(possibleMatchups))
+	perm := rand.Perm(len(possibleMatchups))
+	for i, v := range perm {
+		shuffledMatchups[v] = possibleMatchups[i]
+	}
+
+	for _, possibleMatchup := range shuffledMatchups {
 
 		log.WithField("possible", possibleMatchup).Debug("possible matchup")
 		var checkedMatchups int
