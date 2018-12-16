@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
-	"github.com/satori/go.uuid"
+	"github.com/gofrs/uuid"
 	"github.com/sbogacz/wouldyoutatter/contender"
 	log "github.com/sirupsen/logrus"
 )

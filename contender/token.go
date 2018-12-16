@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/pkg/errors"
-	"github.com/satori/go.uuid"
 	"github.com/sbogacz/wouldyoutatter/dynamostore"
 	"github.com/urfave/cli"
 )
